@@ -1,8 +1,17 @@
-Simplified JavaScript (SJS) consists of a Pratt Parser as described by Douglas 
-Crockford (http://javascript.crockford.com/tdop/tdop.html), and a stack virtual
-machine inspired by Richard W.M. Jones' implementation of FORTH (http://annexia.org/forth).
+Simplified JavaScript (SJS) is a JavaScript interpreter you can embed in your Flash ActionScript 3 projects.  It handles most JavaScript, and you can instantiate native flash objects like MovieClip with the "new" operator and manipulate them.  SJS is useful as an embedded scripting language for games or an exploratory debugging tool.
 
-SJS operates on JavasScript source in four stages:
+Inspirations: 
+
+Douglas Crockford's "Top Down Operator Precedence"
+http://javascript.crockford.com/tdop/tdop.html
+
+Richard W.M. Jones' implementation of FORTH 
+http://annexia.org/forth
+
+
+How it works:
+
+SJS operates on JavasScript in four stages:
 
 1) Tokenize the source code.
   Lexer.as breaks the source code into a flat array of tokens like '{', 'while', '=', '!=', etc.
