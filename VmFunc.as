@@ -1,4 +1,4 @@
-﻿package org.sixsided.scripting {
+﻿package org.sixsided.scripting.SJS {
   public class VmFunc {
     public var name:String;
     public var body:Array; // of *
@@ -9,6 +9,5 @@
         this.body = body;
         this.args = args;
     }
-
   }
 }

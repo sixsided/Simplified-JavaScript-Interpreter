@@ -1,10 +1,10 @@
-package org.sixsided.scripting {
+package org.sixsided.scripting.SJS {
   
   /* A function call frame, with its own program counter and local variables.
      Function calls are the only use of callframes in this VM.  (As opposed to org.sixsided.fith, which uses them for 
      loops.)
    */
-  import org.sixsided.util.Inspector;
+   import org.sixsided.scripting.SJS.Inspector;
   
   public class StackFrame {
     public var code:Array;
