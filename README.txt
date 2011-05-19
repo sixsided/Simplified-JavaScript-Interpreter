@@ -47,8 +47,8 @@ SJS operates on JavasScript in four stages:
 
 SJS differs from JavaScript, mostly by omission:
   omitted keywords: delete typeof void as in instanceof is
-  omitted control structures: for/in, while at end of block (as in "{ ... } while(cond);")
+  omitted control structures: for/in, switch/case, while at end of block (as in "{ ... } while(cond);")
   no prototype chain / inheritance
   logic:  a() && b()  will call both functions;  same for a() || b().
-  
+  semicolons are required
 */
