@@ -19,7 +19,7 @@ package org.sixsided.scripting.SJS {
       this.vars = vars || {};
     }
   
-    public function next_word(){      
+    public function next_word():*{      
         // this check is here because we want to return control to run and let it finish out the current
         // iteration *before* we exhaust the call frame.  The last word might be a JUMP back to the start of the frame.
         if(this.pc >= this.code.length) {
@@ -29,13 +29,14 @@ package org.sixsided.scripting.SJS {
         }
 
         // console.log('StackFrame.next_word', this.pc, this.code[this.pc]);
-        var word = this.code[this.pc++];
-        return word;    
+        return this.code[this.pc++];  
     }
     
-    public function toString(){
+    public function toString():String{
       var str:String = '';
-      for(var k in vars) str += k + ' : ' + Inspector.inspect(vars[k]) + "\n";
+      for(var k:String in vars) {
+        str += k + ' : ' + Inspector.inspect(vars[k]) + "\n";
+      }
       return str;
     }
   }

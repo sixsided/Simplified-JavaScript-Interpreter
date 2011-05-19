@@ -28,17 +28,17 @@ package org.sixsided.scripting.SJS {
   
 
     public static function tokenize(src:String, prefix:String='=<>!+-*&|/%^', suffix:String='=<>&|') {
-        var c;                      // The current character.
-        var from;                   // The index of the start of the token.
-        var i = 0;                  // The index of the current character.
+        var c:*;                      // The current character.
+        var from:int;                   // The index of the start of the token.
+        var i:int = 0;                  // The index of the current character.
         var length = src.length;
-        var n;                      // The number value.
-        var q;                      // The quote character.
-        var str;                    // The string value.
+        var n:*;                      // The number value.
+        var q:String;                      // The quote character.
+        var str:String;                    // The string value.
 
-        var result = [];            // An array to hold the results.
+        var result:Array = [];            // An array to hold the results.
     
-        var make = function (type, value) {
+        var make:Function = function (type, value) {
 
     // Make a token object.
             if(type == 'number') value = parseFloat(value);

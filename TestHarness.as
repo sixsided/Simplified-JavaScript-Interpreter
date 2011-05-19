@@ -9,7 +9,7 @@ package org.sixsided.scripting.SJS
     {
         public function TestHarness()
         {
-          trace("-------------- SJS TestHarness" + ((new Date()).toString()) + " --------------");
+          trace("-------------- SJS TestHarness [" + ((new Date()).toString()) + "] --------------");
           var ts:TestSpec = new TestSpec();
           ts.run_specs();
             //super();
