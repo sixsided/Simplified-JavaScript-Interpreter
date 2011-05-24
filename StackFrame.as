@@ -12,11 +12,14 @@ package org.sixsided.scripting.SJS {
     public var exhausted:Boolean;
     public var vars:Object;
     
-    function StackFrame(code:Array,vars:Object=null) {
+    public var parent:StackFrame;
+    
+    function StackFrame(code:Array,vars:Object=null, parent=null) {
       this.code = code;
       this.pc = 0;
       this.exhausted = false;
       this.vars = vars || {};
+      this.parent = parent;
     }
   
     public function next_word():*{      

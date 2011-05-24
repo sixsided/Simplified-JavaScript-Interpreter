@@ -8,7 +8,6 @@
         this.name = name;
         this.body = body;
         this.args = args;
-    }
-    
+    }   
   }
 }
