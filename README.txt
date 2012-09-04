@@ -15,6 +15,7 @@ SJS operates on JavasScript in four stages:
 
 1) Tokenize the source code.
   Lexer.as breaks the source code into a flat array of tokens like '{', 'while', '=', '!=', etc.
+  This is just Douglas Crockford's lexer.
 
 2) Parse the token array.
   Parser.as converts the token array into a tree of parse node objects, such that a preorder traversal
@@ -52,3 +53,21 @@ SJS differs from JavaScript, mostly by omission:
   logic:  a() && b()  will call both functions;  same for a() || b().
   semicolons are required
 */
+
+
+Note for RemoteConsole.as:
+		serve policy files on Flash's expected port 843 with:		
+			while true ; cat policy.xml | nc -l 843 ; end
+			
+		listen for connections from the Flash app with:
+			rlwrap nc -lk 8080
+		
+		better yet, run remote-console-hub.py, which provides a "chat" server 
+		that stays up across multiple runs of your SWF. Connect to it and issue
+		commands from Terminal with:
+
+			rlwrap nc localhost 9000
+		
+		
+		
+		
