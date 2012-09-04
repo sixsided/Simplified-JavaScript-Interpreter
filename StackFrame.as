@@ -14,7 +14,7 @@ package org.sixsided.scripting.SJS {
     
     public var parent:StackFrame;
     
-    function StackFrame(code:Array,vars:Object=null, parent=null) {
+    function StackFrame(code:Array,vars:Object=null, parent:StackFrame=null) {
       this.code = code;
       this.pc = 0;
       this.exhausted = false;
