@@ -27,18 +27,18 @@ package org.sixsided.scripting.SJS {
   public class Lexer {
   
 
-    public static function tokenize(src:String, prefix:String='=<>!+-*&|/%^', suffix:String='=<>&|') {
+    public static function tokenize(src:String, prefix:String='=<>!+-*&|/%^', suffix:String='=<>&|'):Array {
         var c:*;                      // The current character.
         var from:int;                   // The index of the start of the token.
         var i:int = 0;                  // The index of the current character.
-        var length = src.length;
+        var length:int = src.length;
         var n:*;                      // The number value.
         var q:String;                      // The quote character.
         var str:String;                    // The string value.
 
         var result:Array = [];            // An array to hold the results.
     
-        var make:Function = function (type, value) {
+        var make:Function = function (type:String, value:*):Object {
 
     // Make a token object.
             if(type == 'number') value = parseFloat(value);
@@ -46,14 +46,15 @@ package org.sixsided.scripting.SJS {
                 type: type,
                 value: value,
                 from: from,
-                to: i
+                to: i,
+                error:function(msg:String):void { throw(msg); }
             };
         };
 
     // Begin tokenization. If the source string is empty, return nothing.
 
         if (!src) {
-            return;
+            return null;
         }
 
 /*    // If prefix and suffix strings are not provided, supply defaults.
@@ -104,21 +105,29 @@ package org.sixsided.scripting.SJS {
                 i += 1;
 
     // Look for more digits.
+    
+                // hex number?
+                if(src.charAt(i) == 'x') {
+                    str = '';
+                    i += 1;
 
-                for (;;) {
-                    c = src.charAt(i);
-                    if (c < '0' || c > '9') {
-                        break;
+                    for (;;) {
+                        c = src.charAt(i);
+                        if ((c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F')) {
+                            break;
+                        }
+                        i += 1;
+                        str += c;
                     }
-                    i += 1;
-                    str += c;
-                }
-
-    // Look for a decimal fraction part.
-
-                if (c === '.') {
-                    i += 1;
-                    str += c;
+                    n = parseInt(str, 16);
+                    if (isFinite(n)) {
+                        result.push(make('number', n));
+                    } else {
+                        make('number', str).error("Bad hex number");
+                    }
+                } else {
+                    //regular number
+                
                     for (;;) {
                         c = src.charAt(i);
                         if (c < '0' || c > '9') {
@@ -127,45 +136,60 @@ package org.sixsided.scripting.SJS {
                         i += 1;
                         str += c;
                     }
-                }
 
-    // Look for an exponent part.
+        // Look for a decimal fraction part.
 
-                if (c === 'e' || c === 'E') {
-                    i += 1;
-                    str += c;
-                    c = src.charAt(i);
-                    if (c === '-' || c === '+') {
+                    if (c === '.') {
                         i += 1;
                         str += c;
+                        for (;;) {
+                            c = src.charAt(i);                        
+                            if (c < '0' || c > '9') {
+                                break;
+                            }
+                            i += 1;
+                            str += c;
+                        }
                     }
-                    if (c < '0' || c > '9') {
-                        make('number', str).error("Bad exponent");
-                    }
-                    do {
+
+        // Look for an exponent part.
+
+                    if (c === 'e' || c === 'E') {
                         i += 1;
                         str += c;
                         c = src.charAt(i);
-                    } while (c >= '0' && c <= '9');
-                }
+                        if (c === '-' || c === '+') {
+                            i += 1;
+                            str += c;
+                        }
+                        if (c < '0' || c > '9') {
+                            make('number', str).error("Bad exponent");
+                        }
+                        do {
+                            i += 1;
+                            str += c;
+                            c = src.charAt(i);
+                        } while (c >= '0' && c <= '9');
+                    }
 
-    // Make sure the next character is not a letter.
+        // Make sure the next character is not a letter.
 
-                if (c >= 'a' && c <= 'z') {
-                    str += c;
-                    i += 1;
-                    make('number', str).error("Bad number");
-                }
+                    if (c >= 'a' && c <= 'z') {
+                        str += c;
+                        i += 1;
+                        make('number', str).error("Bad number");
+                    }
 
-    // Convert the string value to a number. If it is finite, then it is a good
-    // token.
+        // Convert the string value to a number. If it is finite, then it is a good
+        // token.
 
-                n = +str;
-                if (isFinite(n)) {
-                    result.push(make('number', n));
-                } else {
-                    make('number', str).error("Bad number");
-                }
+                    n = parseFloat(str);  // was +str
+                    if (isFinite(n)) {
+                        result.push(make('number', n));
+                    } else {
+                        make('number', str).error("Bad number");
+                    }
+                } // hex / regular number
 
     // string
 
