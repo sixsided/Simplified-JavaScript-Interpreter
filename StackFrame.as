@@ -4,7 +4,7 @@ package org.sixsided.scripting.SJS {
      Function calls are the only use of callframes in this VM.  (As opposed to org.sixsided.fith, which uses them for 
      loops.)
    */
-   import org.sixsided.scripting.SJS.Inspector;
+   /*import org.sixsided.scripting.SJS.Inspector;*/
   
   public class StackFrame {
     public var code:Array;
@@ -36,11 +36,11 @@ package org.sixsided.scripting.SJS {
     }
     
     public function toString():String{
-      var str:String = '';
+      /*var str:String = '';
       for(var k:String in vars) {
         str += k + ' : ' + Inspector.inspect(vars[k]) + "\n";
       }
-      return str;
+      return str;*/
     }
   }
 }

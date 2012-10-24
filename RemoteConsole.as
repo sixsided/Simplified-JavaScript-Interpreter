@@ -124,7 +124,7 @@ package org.sixsided.scripting.SJS {
       interpreter.vm.set_global('trace', rcTrace);
       interpreter.vm.set_global('_', rcInspect);
       interpreter.vm.set_global('help', rcHelp);           
-      interpreter.setGlobals({trace_on : interpreter.parser.trace_on, trace_off :  interpreter.parser.trace_off});           
+      // interpreter.setGlobals({trace_on : interpreter.parser.trace_on, trace_off :  interpreter.parser.trace_off});           
       //interpreter.parser.trace_on();
       //interpreter.vm.system_dicts[0].trace = this.rcTrace;
       //interpreter.vm.system_dicts[0]._ = function(v:*) { rcTrace(Inspector.inspect(v)); };
