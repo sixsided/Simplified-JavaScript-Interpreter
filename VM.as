@@ -159,7 +159,7 @@ package org.sixsided.scripting.SJS {
         // FIXME: trace should probably be injected from the test suite -- this may be useful for debugging, though.
         // Will need a listener or something for getting at the traces.
         //var self:VM = this;
-        set_global('trace', vmTrace);
+        /*set_global('trace', vmTrace);*/
         set_global('halt', vmHalt);
         set_global('Math', Math);
         set_global('Date', Date);
@@ -177,10 +177,10 @@ package org.sixsided.scripting.SJS {
           
     }
     
-    public function vmTrace():void {
+    /*public function vmTrace():void {
       trace('[SJS] ', arguments); 
       dbg_traces.push(arguments); 
-    }
+    }*/
     public function vmHalt():void {
       halt();
     }    
@@ -285,8 +285,12 @@ package org.sixsided.scripting.SJS {
     };
 
 // stack manipulation
-    public function opush(op:*):void { trace(op, '->', '(', os.join(' '), ')'); os.unshift(op); };
-    public function opop():* { trace(os[0], '<-', '(', os.join(' '), ')'); return os.shift(); };
+    private function get _osAsString() : String {
+      return os.map(function(e:*, ...args) : String { if (e is Function) { return '*fn*'; } return e; }).join(' ');
+    }
+    
+    public function opush(op:*):void { log(op, '->', '(', _osAsString, ')'); os.unshift(op); };
+    public function opop():* { log(os[0], '<-', '(', _osAsString, ')'); return os.shift(); };
     public function numpop():Number { return parseFloat(opop()); };
     public function bin_ops():Array { return [opop(), opop() ].reverse(); };
     public function pushmark():void { marks.unshift(os.length); };

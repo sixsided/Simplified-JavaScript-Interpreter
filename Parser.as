@@ -45,6 +45,8 @@ package org.sixsided.scripting.SJS {
         the id of a parseNode references
         
     */
+    import org.sixsided.util.ANSI;
+    
   public class Parser {
 
       public var symtab:Object = {};
@@ -115,10 +117,12 @@ package org.sixsided.scripting.SJS {
 
         public function codegen(src:String = null):Array{
           if(src) { parse(src); }
-          log("##### CODE GENERATION ####\n", dump_ast());
+          
+          log("##### CODE GENERATION ####\n", JSON.stringify(ast));
+          
           generated_code = [];
           C(ast);
-          log('##', generated_code.join(" "));
+          log('## GENERATED:', generated_code.join(" "));
           return generated_code;
         };
     
@@ -132,46 +136,88 @@ package org.sixsided.scripting.SJS {
     
         // Traverse the parse tree in preorder and output it in a 
         // postfix notation with lisp-like parenthesization
-        public function dump_node(tree:Object) : String {
-            var depth:int = 0;
-            function pad():String {
-              return "\n" + '                                    '.slice(0, depth * 2);
-            }
+        /*public function dump_node(tree:Object) : String {
+                   var depth:int = 0;
+                   function pad():String {
+                     return "\n" + '                                    '.slice(0, depth * 2);
+                   }
 
-            function dnr(n:*):String {
-                if(!n) return '';
-                                
-                var ret:String = '';
-                if(n is Array) {
-                  
-                    if(n.length == 0) { return pad() + '[]'; } // display empty arrays compactly
-                    
-                    ret += pad() + '[';                     // '[' and ']' for arrays, such as argument arrays
-                    depth++;
-                    var i:int = 0;
-                    for each (var v:* in n) {
-                        ret += dnr(v);
-                        if(++i < n.length) { ret += ','; }
-                    }
-                    depth--;
-                    ret += pad() + ']'
-                } else if( n.first ){               // '(' and ')' for node children
-                    ret = pad() + '(';
-                    depth++;
-                    ret +=  n.value == '(' ? '@CALL' : n.value;
-                    ret += dnr(n.first);
-                    ret += dnr(n.second);
-                    ret += dnr(n.third);
-                    depth--;
-                    ret += pad() + ')';
-                } else {
-                    return pad() + "'" + n.value + "'";
-                }
-                return ret;
-            }
-            return dnr(tree);
-        }
+                   function dnr(n:*):String {
+                       if(!n) return '';
+                                       
+                       var ret:String = '';
+                       if(n is Array) {
+                         
+                           if(n.length == 0) { return pad() + '[]'; } // display empty arrays compactly
+                           
+                           ret += pad() + '[';                     // '[' and ']' for arrays, such as argument arrays
+                           depth++;
+                           var i:int = 0;
+                           for each (var v:* in n) {
+                               ret += dnr(v);
+                               if(++i < n.length) { ret += ','; }
+                           }
+                           depth--;
+                           ret += pad() + ']'
+                       } else if( n.first ){               // '(' and ')' for node children
+                           ret = pad() + '(';
+                           depth++;
+                           ret +=  n.value == '(' ? 'CALL' : n.value;
+                           ret += dnr(n.first);
+                           ret += dnr(n.second);
+                           ret += dnr(n.third);
+                           depth--;
+                           ret += pad() + ')';
+                       } else {
+                           //return pad() + "'" + n.value + "'";
+                           return pad() + typeof(n.value) + ':' + n.value;
+                       }
+                       return ret;
+                   }
+                   return dnr(tree);
+               }*/
         
+                public function dump_node(tree:Object) : String {
+                     var ret:Array = [];
+                     
+                     function p(s:String) : void {
+                       ret.push(s);
+                     }
+                     
+                     function pval(v:*) : void {
+                       //p(v.value + ':' + typeof v.value);
+                       p(v.value);
+                     }
+                     
+
+                     function dnr(n:*) : void {
+                         if(!n) return;
+
+                         if(n is Array) {
+                             p('[');                     // '[' and ']' for arrays, such as argument arrays
+                             var i:int = 0;
+                             for each (var v:* in n) {
+                                 dnr(v);
+                                 if(++i < n.length) { p(','); }
+                             }
+                             p(']')
+                         } else if( n.hasOwnProperty('first')){               // '(' and ')' around node children
+                             p('(');
+                             if(n.value == '(') p('CALL'); else if(n.value == '[') p("ARRAY"); else pval(n);
+                             dnr(n.first);
+                             dnr(n.second);
+                             dnr(n.third);
+                             p(')');
+                         } else {
+                             pval(n);
+                             return;
+                         }
+                     }
+                     
+                     dnr(tree);
+                     return ret.join(' ');
+                 }        
+                 
         public function dump_ast():String{
           return dump_node(ast);
         };
@@ -182,11 +228,22 @@ package org.sixsided.scripting.SJS {
           return generated_code.join(' ');
         };
 
+        private function _annotateVarsWithType(e:*, i:int, a:Array) : String {
+          if(i == 0 || a[i-1] != VM.LIT) return e;
+          return typeof(e) + ':' + e;          
+          /*return ':' + e;*/
+        }
+        
+        public function dbg_codegen_string():String {
+          this.codegen();
+          return generated_code.map(_annotateVarsWithType).join(' ');
+        };
+
     
       public function log(... msg) : void {
           if(tracing) {
             var indent:String = '                                    '.slice(0, xd * 4);
-            trace(indent, msg.join(' '));
+            trace(indent, '[Parser]', msg.join(' '));
           }
       }
 
@@ -253,7 +310,7 @@ package org.sixsided.scripting.SJS {
       return function():void { C(this.first); C(this.second); emit(opcode); };
     }
 
-    public function infix_thunk_second_codegen(opcode:*):Function { 
+    public function infix_thunk_rhs_codegen(opcode:*):Function { 
       return function():void { 
         C(this.first);
         // delay evaluation of second child by wrapping it in a subarray
@@ -293,14 +350,14 @@ package org.sixsided.scripting.SJS {
       };
 
 
-      public function infix_thunk_second(sym:String, bpow:Number, opcode:*) : Object {
+      public function infix_thunk_rhs(sym:String, bpow:Number, opcode:*) : Object {
             return symtab[sym] = {
                                     led:function(lhs:Object):Object {
                                             this.first = lhs;
                                             this.second = expression(this.bpow);
                                             return this;
                                       },
-                                    codegen:infix_thunk_second_codegen(opcode),
+                                    codegen:infix_thunk_rhs_codegen(opcode),
                                     bpow:bpow
             };
         };
@@ -419,6 +476,32 @@ package org.sixsided.scripting.SJS {
                 }
             };
       };
+      
+
+      
+    public function formattedSyntaxError(t:Object) : String {
+      var nlChar:Object = {"\n":true, "\r":true};
+      
+      function line_start(pos:int):int {
+        while(pos > 0 && !nlChar[source_code.charAt(pos)]) pos--;
+        return Math.max(0, pos);
+      }
+      
+      function line_end(pos:int):int {
+        var z:int = source_code.length - 1;
+        while(pos < z && !nlChar[source_code.charAt(pos)]) pos++;
+        return Math.min(z, pos);
+      }
+      
+      var a:int = line_start(line_start(t.from) - 1);
+      var z:int = line_end(line_end(t.to) + 1);
+      
+      const ansi_escape:String = ANSI.RED + ANSI.INVERT;
+      var dupe:String = source_code.substring(0, t.from) + ansi_escape + source_code.substring(t.from, t.to) + ANSI.NORMAL + source_code.substring(t.to);
+            
+      return dupe.substring(a, z+(ansi_escape + ANSI.NORMAL).length);
+      
+    }
 
 
     public function expression(rbp:Number):Object {
@@ -428,6 +511,7 @@ package org.sixsided.scripting.SJS {
           var t:Object = token;
           next();
           if(t.nud == undefined) {
+            trace(formattedSyntaxError(t));
             throw new SyntaxError("Unexpected " + t.id + " token:  ``" + t.value + "''" + " at char:" + t.from + "-" + t.to + " || line: " + offending_line(t.from));
           }
           var lhs:Object = t.nud();
@@ -492,11 +576,14 @@ package org.sixsided.scripting.SJS {
       *
       ***********************************************************/
 
-
+    public function emit1(opcode:*, ...ignore) : void {
+      emit(opcode);
+    }
+    
     public function emit(... opcodes) : void {
       //var msg = '';
       for(var i:int=0; i<opcodes.length;i++){
-          log('[emit]', opcodes[i]);
+          /*log('[emit]', opcodes[i]);*/
           generated_code.push(opcodes[i]);
       }
     }
@@ -671,7 +758,9 @@ could store the var's stack index.  maybe?
           nud:function():Object {return this;},
           toString:function():String{return this.value;},
           bpow:0,
-          codegen:function():void { emit_lit(this.value); } // tbd test w/ lexer change to parse numbers
+          codegen:function():void { 
+            emit_lit(this.value); 
+          } // tbd test w/ lexer change to parse numbers
       };
   
       //assignment
@@ -682,6 +771,23 @@ could store the var's stack index.  maybe?
       assignment('*=', 130, VM.MUL);
       assignment('/=', 130, VM.DIV);
       assignment('%=', 130, VM.MOD);
+
+      symtab['++'] = {
+        // postincrement only
+        bpow:140,
+        led:function(lhs:Object) : Object {
+          this.first = lhs;
+          return this;
+        },
+        codegen:function() : void {
+          // increment the variable, leaving a copy of its previous value on the stack.
+          C(this.first);
+          emit(VM.DUP);
+          emit(VM.LIT, 1, VM.ADD); 
+          C(this.first, true);
+          emit(VM.PUT);
+        }
+      };
 
       prefix('!', 140, VM.NOT);
       infix('+', 120, VM.ADD);
@@ -711,8 +817,8 @@ could store the var's stack index.  maybe?
       infix('==', 90, VM.EQL);
 
   
-      infix_thunk_second('&&', 50, VM.AND);
-      infix_thunk_second('||', 40, VM.OR);
+      infix_thunk_rhs('&&', 50, VM.AND);
+      infix_thunk_rhs('||', 40, VM.OR);
 
       
        infix('.', 160, VM.GETINDEX); // a.b.c indexing operator
@@ -902,10 +1008,13 @@ could store the var's stack index.  maybe?
           for each(var v:* in this.scope) { body.unshift(VM.LOCAL); body.unshift(v); body.unshift(VM.LIT); }
 
           emit(VM.LIT);
+          
           emit(body);
+          
+          //emit(VM.MARK); emit(VM.EVAL_OFF); body.forEach(emit1); emit(VM.EVAL_ON); emit(VM.ARRAY);  // not the greatest idea
           emit(VM.CLOSURE);
           if(!this.first.isAnonymous) {
-            trace('emitting drop for named function codegen');
+            /*trace('emitting drop for named function codegen');*/
             emit(VM.DROP); // anon function will presumably be assigned to something... although, wait, this kills the module pattern: (function(){...})()
           }
         }     
@@ -932,10 +1041,13 @@ could store the var's stack index.  maybe?
           // x = [1,2,3]
           nud:function():Object {
               var a:Array = [];
-              for(;;){
+              
+              if(token.id != ']') {
+                for(;;){
                   a.push(expression(0));
                   if(token.id != ',') break;
                   next(',');
+                }
               }
               next(']');
               this.first = a;
