@@ -20,6 +20,9 @@ package org.sixsided.scripting.SJS {
     protected var socket:Socket;
     protected var interpreter:Interpreter;    
     protected var helloMessage:String = null;
+    
+    protected var _verboseCodegen:Boolean = true;
+    protected var _verboseParse  :Boolean = true;
 
     public function RemoteConsole(host:String, port:int, helloMessage:String) {
       super();
@@ -58,11 +61,39 @@ package org.sixsided.scripting.SJS {
     
     private var buffer:String = '';
     
+    private function formatStackTrace(e:*) : String {
+      
+      // turn noisy lines like this:
+      //        at org.sixsided.scripting.SJS::Parser/expression()[/Users/miles/Documents/Flash/classes/org/sixsided/scripting/SJS/Parser.as:472]
+      // into this:
+      //         at org.sixsided.scripting.SJS::Parser/expression()[Parser.as:472]
+      //         Parser/expression()[Parser.as:472]
+      
+      var txt:String = e.getStackTrace();
+      var lines:Array = txt.split("\n");
+      var head:String = lines[0];
+      var body:String = lines.slice(1).join("\n");
+      
+      /*body.replace(/at .*::/g, '').replace(/\[(.*):/g, '[\1')*/
+      body = body.replace(/at .*::/g, '').replace(/\[.*\/(.*):/g, "[$1:");
+
+
+      /*
+      TBD: split on "[" and align [File.as:lineNum] to same tab stop
+      var margin:Number = 0;
+      lines.slice(1).forEach(function(e:String) { acc = Math.max(acc, e.indexOf('[')); });
+      */
+
+
+      return head + "\n" + body;
+    }
+      
+    
     protected function evtData(e:ProgressEvent):void {
       var data:String = this.socket.readUTFBytes(this.socket.bytesAvailable);
       //trace('read from socket: "' + data + '"');
       if(interpreter) {
-        try {
+        /*try {*/
           /*
           // semicolon insertion
             if(!data.match(/\s*;\s*$/)) {
@@ -76,18 +107,23 @@ package org.sixsided.scripting.SJS {
             try {
               interpreter.doString(buffer + data);
             } catch(e:*) {
-              trace(e);
-              trace(e.getStackTrace());
+              trace("RemoteConsole::evtData -> doString:", formatStackTrace(e));
               sendBack(e);
             } finally {
               buffer = '';
+              if(_verboseParse) {
+                rcTrace(interpreter.parser.dump_ast());
+              }
+              if(_verboseCodegen) {
+                rcTrace(interpreter.parser.dbg_codegen_string());
+              }
             }
           } else {
             buffer += data;
           }
-        } catch(e:*) {
-          trace(e);
-        }
+        /*} catch(e:*) {
+          trace("RemoteConsole::evtData(trying to match string)", e);
+        }*/
       }
     }
     
@@ -118,12 +154,22 @@ package org.sixsided.scripting.SJS {
       //rcTrace("=== dict #" + i + " ===\n" + keys(vm.system_dicts[i]));
     }
     
+    public function rcVerboseParse(on:Boolean) : void {
+      _verboseParse = on;
+    }
+    
+    public function rcVerboseCodegen(on:Boolean) : void {
+      _verboseCodegen = on;
+    }
+    
     
     public function setInterpreter(i:Interpreter)  : void {
       interpreter = i;
       interpreter.vm.set_global('trace', rcTrace);
       interpreter.vm.set_global('_', rcInspect);
       interpreter.vm.set_global('help', rcHelp);           
+      interpreter.vm.set_global('verbose_parse', rcVerboseParse);           
+      interpreter.vm.set_global('verbose_codegen', rcVerboseCodegen);                 
       // interpreter.setGlobals({trace_on : interpreter.parser.trace_on, trace_off :  interpreter.parser.trace_off});           
       //interpreter.parser.trace_on();
       //interpreter.vm.system_dicts[0].trace = this.rcTrace;
