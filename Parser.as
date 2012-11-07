@@ -639,13 +639,13 @@ package org.sixsided.scripting.SJS {
         trace('empty node reached');
         return;
       }
-       //log('C', node);
-      //if(isArray(node)) { // statements
-        
-      // extract arrays:
-      if(node is Array) { // statements or argument lists
+ 
+      // TODO: if multiple assignment: MARK .. C ... CLEARTOMARK
+      
+       if(node is Array) { // statements or argument lists
         for(var i:int=0;i<node.length;i++) {
             C(node[i], is_lhs);
+            /*emit(VM.DROPALL);*/
             // we might need to drop some leftover values from a multiple assignment
             // while(drops_needed > 0) { 
             //   log('emitting drop after multiple assignment,', drops_needed, 'remaining');
@@ -775,17 +775,37 @@ could store the var's stack index.  maybe?
       symtab['++'] = {
         // postincrement only
         bpow:140,
+        preincrement:false,
         led:function(lhs:Object) : Object {
           this.first = lhs;
           return this;
         },
+        nud:function() : Object {
+          // next must be variable name
+          if(token.id == ID_NAME) {
+            this.first = token;
+            this.preincrement = true;
+            next();
+            return this;
+          } else {
+            throw new Error("Expected ID_NAME after ++ operator");
+          }
+        },
         codegen:function() : void {
           // increment the variable, leaving a copy of its previous value on the stack.
-          C(this.first);
-          emit(VM.DUP);
-          emit(VM.LIT, 1, VM.ADD); 
-          C(this.first, true);
-          emit(VM.PUT);
+          if(this.preincrement) {
+            C(this.first);
+            emit(VM.LIT, 1, VM.ADD); 
+            emit(VM.DUP);
+            C(this.first, true);
+            emit(VM.PUT);
+          } else /* postincrement */ {
+            C(this.first);
+            emit(VM.DUP);
+            emit(VM.LIT, 1, VM.ADD); 
+            C(this.first, true);
+            emit(VM.PUT);
+          }
         }
       };
 

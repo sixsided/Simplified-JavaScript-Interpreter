@@ -1,0 +1,11 @@
+0. start testing
+1. fix parse tree dump format  (prefix literals with "typeof" output; delimit with spaces)
+2. add verbosity builtin functions (to RemoteConsole?)
+	* dump parse tree
+	* dump opcodes
+	?  trace VM actions
+3. wrap tokens in a "ParseNode" type
+	3b. gradually replace them with ParseNode subclasses
+	
+	This is a refactor that makes the code more readable by providing a uniform, statically typed interface across all token types.
+	
