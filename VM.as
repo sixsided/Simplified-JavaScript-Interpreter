@@ -17,7 +17,7 @@ package org.sixsided.scripting.SJS {
  
   import flash.geom.*;
   import flash.display.*;
-
+  import org.sixsided.util.Promise;
 
   public class VM {
 /*
@@ -37,6 +37,7 @@ package org.sixsided.scripting.SJS {
       public static const NOP:String         = 'NOP';
       public static const DUP:String         = 'DUP';
       public static const DROP:String        = 'DROP';
+      /*public static const DROPALL:String        = 'DROPALL';*/
       public static const SWAP:String        = 'SWAP';
       public static const INDEX:String       = 'INDEX';
       public static const LIT:String         = 'LIT';
@@ -57,6 +58,7 @@ package org.sixsided.scripting.SJS {
       public static const NOT:String         = 'NOT';
       public static const CLOSURE:String     = 'CLOSURE';
       public static const MARK:String        = 'MARK';
+      /*public static const CLEARTOMARK:String        = 'CLEARTOMARK';*/
       public static const ARRAY:String       = 'ARRAY';
       public static const HASH:String        = 'HASH';
       public static const JUMP:String        = 'JUMP';
@@ -70,6 +72,7 @@ package org.sixsided.scripting.SJS {
       public static const GET:String         = 'GET';
       public static const LOCAL:String       = 'LOCAL';
       public static const NATIVE_NEW:String  = 'NATIVE_NEW';
+      public static const AWAIT:String       = 'AWAIT';
       //public static const HALT:String        = 'HALT';
 
 
@@ -160,7 +163,7 @@ package org.sixsided.scripting.SJS {
         // Will need a listener or something for getting at the traces.
         //var self:VM = this;
         /*set_global('trace', vmTrace);*/
-        set_global('halt', vmHalt);
+        set_global('halt', halt);
         set_global('Math', Math);
         set_global('Date', Date);
         set_global('null', null);
@@ -181,9 +184,6 @@ package org.sixsided.scripting.SJS {
       trace('[SJS] ', arguments); 
       dbg_traces.push(arguments); 
     }*/
-    public function vmHalt():void {
-      halt();
-    }    
 
     public function pushdict(dict:Object) : void {
       system_dicts.push(dict);
@@ -218,6 +218,7 @@ package org.sixsided.scripting.SJS {
     public function run() : VM {
       var e:Error;
       var cs:Array = call_stack;
+      trace('VM.run; call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');
       running = true; // HALT operator can stop it.  Just call vm.run() to resume;
    //   try { 
         while(cs.length) {
@@ -234,6 +235,7 @@ package org.sixsided.scripting.SJS {
             }
             log(w, ' ( ', os.join(' '), ' ) ', '# '+os.length);
             op();
+            if(!running) return this; // bail from AWAIT instruction
           }
           cpop();
         }
@@ -337,7 +339,7 @@ package org.sixsided.scripting.SJS {
         // log(Inspector.inspect(vm_globals));
         var v:* = _find_var(key);
         if(undefined === v) {
-          trace('* * * * * VM.find_var('+key+') returned undefined value.  Typo? * * * * * *');
+          trace('* * * [VM] find_var('+key+') : not found');
           // trace(Inspector.inspect(vm_globals));
           return null;
         }
@@ -395,7 +397,8 @@ package org.sixsided.scripting.SJS {
         //stack manipulation
         private function DUP()   :void{ var p:* = opop(); opush(p); opush(p); }
         private function DROP()  :void{ opop(); }
-        private function DROPALL()  :void{ os.length = 0; }
+        /*private function DROPALL()  :void{ os.length = 0; }
+        private function CLEARTOMARK()  :void{ yanktomark(); }*/
         private function SWAP()  :void{ var a:* = opop(); var b  : * = opop(); opush(a); opush(b); }
         private function INDEX() :void{ var index :*= opop(); opush(os[index]); }
 
@@ -458,9 +461,9 @@ package org.sixsided.scripting.SJS {
         }
 
       //structures
-        private function MARK():void{  pushmark(); }
-        private function ARRAY():void{  opush(yanktomark()); }
-        private function HASH():void{ 
+        private function MARK():void {  pushmark(); }
+        private function ARRAY():void { opush(yanktomark()); }
+        private function HASH():void {
               var i:int, dict:Object = {}, a:Array = yanktomark(); 
               for(i=0; i < a.length; i+=2) {
                 dict[a[i]] = a[i+1];
@@ -596,6 +599,17 @@ package org.sixsided.scripting.SJS {
               default: throw "NATIVE_NEW was given too many arguments: " + args.length;
             }       
             opush(instance);            
+        }
+        
+        private function _resumeFromPromise(...ignoredArgs) : void {
+          trace('_resumeFromPromise', ignoredArgs);
+          run();
+        }
+        
+        private function AWAIT():void {
+          var p:Promise = opop();
+          halt();
+          p.onFulfill(_resumeFromPromise);
         }
             
         private function NOP():void{ 

@@ -111,12 +111,12 @@ package org.sixsided.scripting.SJS {
               sendBack(e);
             } finally {
               buffer = '';
-              if(_verboseParse) {
+              /*if(_verboseParse) {
                 rcTrace(interpreter.parser.dump_ast());
               }
               if(_verboseCodegen) {
                 rcTrace(interpreter.parser.dbg_codegen_string());
-              }
+              }*/
             }
           } else {
             buffer += data;

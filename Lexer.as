@@ -27,7 +27,7 @@ package org.sixsided.scripting.SJS {
   public class Lexer {
   
 
-    public static function tokenize(src:String, prefix:String='=<>!+-*&|/%^', suffix:String='=<>&|+'):Array {
+    public static function tokenize(src:String, prefix:String='=<>!+-*&|/%^', suffix:String='=<>&|+-'):Array {
         var c:*;                      // The current character.
         var from:int;                   // The index of the start of the token.
         var i:int = 0;                  // The index of the current character.

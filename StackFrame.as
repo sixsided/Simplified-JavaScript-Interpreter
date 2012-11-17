@@ -25,17 +25,18 @@ package org.sixsided.scripting.SJS {
     public function next_word():*{      
         // this check is here because we want to return control to run and let it finish out the current
         // iteration *before* we exhaust the call frame.  The last word might be a JUMP back to the start of the frame.
-        if(this.pc >= this.code.length) {
-          // console.warn('exhausted StackFrame');
+        if(pc >= this.code.length) {
+          /*trace('[StackFrame] next_word exhausted StackFrame @', pc);*/
           this.exhausted = true;  
           return VM.NOP; // fixme reference Opcode table object
         }
 
         // console.log('StackFrame.next_word', this.pc, this.code[this.pc]);
-        return this.code[this.pc++];  
+        return code[pc++];  
     }
     
     public function toString():String{
+      return '[StackFrame @' + pc + ']';
       /*var str:String = '';
       for(var k:String in vars) {
         str += k + ' : ' + Inspector.inspect(vars[k]) + "\n";

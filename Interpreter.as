@@ -7,10 +7,6 @@ package org.sixsided.scripting.SJS {
     public var vm:VM;
     public var parser:Parser;  
     
-    private var opcode_array:Array;
-    public var opcode:String;
-    public var ast:String;
-
     public function Interpreter(bootScript:String='') {
       vm = new VM();
       parser = new Parser();
@@ -32,10 +28,7 @@ package org.sixsided.scripting.SJS {
     
     public function load(script:String):Interpreter {
       parser.parse(script);
-      ast = parser.dump_ast();
-      vm.load(opcode_array = parser.codegen());
-      opcode = opcode_array.join(" ");
-      //trace(opcode);
+      vm.load(parser.codegen());
       return this;
     }
     

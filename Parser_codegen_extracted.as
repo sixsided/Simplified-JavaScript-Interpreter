@@ -45,8 +45,6 @@ package org.sixsided.scripting.SJS {
         the id of a parseNode references
         
     */
-    import org.sixsided.util.ANSI;
-    
   public class Parser {
 
       public var symtab:Object = {};
@@ -115,17 +113,6 @@ package org.sixsided.scripting.SJS {
         };
 
 
-        public function codegen(src:String = null):Array{
-          if(src) { parse(src); }
-          
-          log("##### CODE GENERATION ####\n", JSON.stringify(ast));
-          
-          generated_code = [];
-          C(ast);
-          log('## GENERATED:', generated_code.join(" "));
-          return generated_code;
-        };
-    
 
 
       /***********************************************************
@@ -136,114 +123,55 @@ package org.sixsided.scripting.SJS {
     
         // Traverse the parse tree in preorder and output it in a 
         // postfix notation with lisp-like parenthesization
-        /*public function dump_node(tree:Object) : String {
-                   var depth:int = 0;
-                   function pad():String {
-                     return "\n" + '                                    '.slice(0, depth * 2);
-                   }
+        public function dump_node(tree:Object) : String {
+            var depth:int = 0;
+            function pad():String {
+              return "\n" + '                                    '.slice(0, depth * 2);
+            }
 
-                   function dnr(n:*):String {
-                       if(!n) return '';
-                                       
-                       var ret:String = '';
-                       if(n is Array) {
-                         
-                           if(n.length == 0) { return pad() + '[]'; } // display empty arrays compactly
-                           
-                           ret += pad() + '[';                     // '[' and ']' for arrays, such as argument arrays
-                           depth++;
-                           var i:int = 0;
-                           for each (var v:* in n) {
-                               ret += dnr(v);
-                               if(++i < n.length) { ret += ','; }
-                           }
-                           depth--;
-                           ret += pad() + ']'
-                       } else if( n.first ){               // '(' and ')' for node children
-                           ret = pad() + '(';
-                           depth++;
-                           ret +=  n.value == '(' ? 'CALL' : n.value;
-                           ret += dnr(n.first);
-                           ret += dnr(n.second);
-                           ret += dnr(n.third);
-                           depth--;
-                           ret += pad() + ')';
-                       } else {
-                           //return pad() + "'" + n.value + "'";
-                           return pad() + typeof(n.value) + ':' + n.value;
-                       }
-                       return ret;
-                   }
-                   return dnr(tree);
-               }*/
+            function dnr(n:*):String {
+                if(!n) return '';
+                                
+                var ret:String = '';
+                if(n is Array) {
+                  
+                    if(n.length == 0) { return pad() + '[]'; } // display empty arrays compactly
+                    
+                    ret += pad() + '[';                     // '[' and ']' for arrays, such as argument arrays
+                    depth++;
+                    var i:int = 0;
+                    for each (var v:* in n) {
+                        ret += dnr(v);
+                        if(++i < n.length) { ret += ','; }
+                    }
+                    depth--;
+                    ret += pad() + ']'
+                } else if( n.first ){               // '(' and ')' for node children
+                    ret = pad() + '(';
+                    depth++;
+                    ret +=  n.value == '(' ? '@CALL' : n.value;
+                    ret += dnr(n.first);
+                    ret += dnr(n.second);
+                    ret += dnr(n.third);
+                    depth--;
+                    ret += pad() + ')';
+                } else {
+                    return pad() + "'" + n.value + "'";
+                }
+                return ret;
+            }
+            return dnr(tree);
+        }
         
-                public function dump_node(tree:Object) : String {
-                     var ret:Array = [];
-                     
-                     function p(s:String) : void {
-                       ret.push(s);
-                     }
-                     
-                     function pval(v:*) : void {
-                       //p(v.value + ':' + typeof v.value);
-                       p(v.value);
-                     }
-                     
-
-                     function dnr(n:*) : void {
-                         if(!n) return;
-
-                         if(n is Array) {
-                             p('[');                     // '[' and ']' for arrays, such as argument arrays
-                             var i:int = 0;
-                             for each (var v:* in n) {
-                                 dnr(v);
-                                 if(++i < n.length) { p(','); }
-                             }
-                             p(']')
-                         } else if( n.hasOwnProperty('first')){               // '(' and ')' around node children
-                             p('(');
-                             if(n.value == '(') p('CALL'); else if(n.value == '[') p("ARRAY"); else pval(n);
-                             dnr(n.first);
-                             dnr(n.second);
-                             dnr(n.third);
-                             p(')');
-                         } else {
-                             pval(n);
-                             return;
-                         }
-                     }
-                     
-                     dnr(tree);
-                     return ret.join(' ');
-                 }        
-                 
         public function dump_ast():String{
           return dump_node(ast);
         };
     
     
-        public function codegen_string():String {
-          this.codegen();
-          return generated_code.join(' ');
-        };
-
-        private function _annotateVarsWithType(e:*, i:int, a:Array) : String {
-          if(i == 0 || a[i-1] != VM.LIT) return e;
-          return typeof(e) + ':' + e;          
-          /*return ':' + e;*/
-        }
-        
-        public function dbg_codegen_string():String {
-          this.codegen();
-          return generated_code.map(_annotateVarsWithType).join(' ');
-        };
-
-    
       public function log(... msg) : void {
           if(tracing) {
             var indent:String = '                                    '.slice(0, xd * 4);
-            trace(indent, '[Parser]', msg.join(' '));
+            trace(indent, msg.join(' '));
           }
       }
 
@@ -306,28 +234,6 @@ package org.sixsided.scripting.SJS {
           return _extend(token, symtab[token.id]); // clone FTW.  So what if it might be slow?   handles the this binding simply.
       }
 
-    public function infix_codegen(opcode:*):Function { 
-      return function():void { C(this.first); C(this.second); emit(opcode); };
-    }
-
-    public function infix_thunk_rhs_codegen(opcode:*):Function { 
-      return function():void { 
-        C(this.first);
-        // delay evaluation of second child by wrapping it in a subarray
-        emit(VM.LIT);
-        emit(codegen_block(this.second));
-        //emit(VM.CLOSURE); // stack for a closure looks like [name, [args], [body]]
-        
-        //C(this.second);
-        
-        emit(opcode);
-      };
-    }
-
-    public function prefix_codegen(opcode:*):Function { 
-      return function():void { C(this.first); emit(opcode); };
-    }
-
 
     public function symbol(sym:String):Object {
       if(symtab.hasOwnProperty(sym)) return symtab[sym];
@@ -344,24 +250,10 @@ package org.sixsided.scripting.SJS {
         
           return symtab[sym] = {
                                   led:leftDenotation,
-                                  codegen:infix_codegen(opcode),
                                   bpow:bpow
           };
       };
 
-
-      public function infix_thunk_rhs(sym:String, bpow:Number, opcode:*) : Object {
-            return symtab[sym] = {
-                                    led:function(lhs:Object):Object {
-                                            this.first = lhs;
-                                            this.second = expression(this.bpow);
-                                            return this;
-                                      },
-                                    codegen:infix_thunk_rhs_codegen(opcode),
-                                    bpow:bpow
-            };
-        };
-      
 
     // TBD: let a script function say  parser.user_infix('x', 160, newPoint);   p = 30 x 60;  function newPoint(a,b) { return new Point(a,b); }
     //public function user_infix(sym:String, bpow:Number, callback:VmFunc) {
@@ -388,36 +280,9 @@ package org.sixsided.scripting.SJS {
             this.first = expression(0);
             return this;
         };
-        s.codegen = prefix_codegen(opcode);
     }
     
-    
-  // from the terminal:
-  // defineOperator('->', function(message, callback) { Messenger.listen(message, callback); })
-  // TODO: make this actually work
-  public function defineOperator(id:String, operation:Function /* callback to VM */,  bpow:int = 999) : void {
-        var sym:Object = symbol(id);
-        sym.bpow = bpow;
-        sym.led = function(lhs:Object):Object {
-                                    this.first = lhs;
-                                    this.second = [expression(this.bpow - 1 )];  /* drop the bpow by one to be right-associative; make into an [ argument list ] */
-                                    //this.assignment = true;
-                                    return this;
-                                };
-
-        sym.codegen = function():void {          
-              emit(operation);
-              
-              emit(VM.MARK);
-              C(this.first);
-              C(this.second);
-              emit(VM.ARRAY);
-              
-              emit(VM.CALL);
-        };
-
-  }
-
+ 
   public function assignment(id:String, bpow:int, operation:String=null) : void {
         var sym:Object = symbol(id);
         sym.bpow = bpow;
@@ -432,72 +297,7 @@ package org.sixsided.scripting.SJS {
                                     return this;
                                 };
 
-        sym.codegen = function():void {
-                                    if(mutate) {                                    
-                                        // do the operation     // if it's "x += 3", then...
-                                        C(this.first);          // LIT x
-                                        C(this.second);         // VAL 3
-                                        emit(operation);        // ADD
-                                    } else {
-                                        // just emit the value   // if it's "x = 3", then:  LIT 3
-                                        C(this.second);
-                                    }
-
-                                    //assign it to the lhs
-                                    C(this.first, true);        // LIT x 
-            
-                                    if(this.first.id=='.') {
-                                        // e.g. for "point.x += 3", change the opcode from:
-                                        //    VAL point LIT x GETINDEX LIT 3 ADD    VAL point LIT x GETINDEX
-                                        // to:                                                      ^^^
-                                        //    VAL point LIT x GETINDEX LIT 3 ADD    VAL point LIT x PUTINDEX
-                                        remit(VM.PUTINDEX); // PUTINDEX consumes the stack (val obj key)  and does obj[key] = val;
-                                    } else {
-                                        emit(VM.PUT);
-                                    }
-                                    // PUT leaves the value onstack for multiple assignment, DROP it as we come out of the nested assignments
-                                    // need_drop();
-                                };
-
-    }
-    
-    
-    public function affix(id:String, bpow:int, opcode:String) : void {
-       symtab[id] = {
-              bpow:bpow,
-              isPrefix:false,
-              led:function(lhs:Object) : Object {
-                this.first = lhs;
-                return this;
-              },
-              nud:function() : Object {
-                // next must be variable name
-                if(token.id == ID_NAME) {
-                  this.first = token;
-                  this.isPrefix = true;
-                  next();
-                  return this;
-                } else {
-                  throw new Error("Expected ID_NAME after ++ operator");
-                }
-              },
-              codegen:function() : void {
-                // increment the variable, leaving a copy of its previous value on the stack.
-                if(this.isPrefix) {
-                  C(this.first);
-                  emit(VM.LIT, 1, opcode); 
-                  emit(VM.DUP);
-                  C(this.first, true);
-                  emit(VM.PUT);
-                } else /* postfix */ {
-                  C(this.first);
-                  emit(VM.DUP);
-                  emit(VM.LIT, 1, opcode); 
-                  C(this.first, true);
-                  emit(VM.PUT);
-                }
-              }
-            };      
+       
     }
 
        
@@ -509,38 +309,9 @@ package org.sixsided.scripting.SJS {
                   this.value = v;
                   return this;
                 },
-                bpow:0, 
-                codegen:function():void {
-                            emit_lit(this.value);
-                }
+                bpow:0               
             };
       };
-      
-
-      
-    public function formattedSyntaxError(t:Object) : String {
-      var nlChar:Object = {"\n":true, "\r":true};
-      
-      function line_start(pos:int):int {
-        while(pos > 0 && !nlChar[source_code.charAt(pos)]) pos--;
-        return Math.max(0, pos);
-      }
-      
-      function line_end(pos:int):int {
-        var z:int = source_code.length - 1;
-        while(pos < z && !nlChar[source_code.charAt(pos)]) pos++;
-        return Math.min(z, pos);
-      }
-      
-      var a:int = line_start(line_start(t.from) - 1);
-      var z:int = line_end(line_end(t.to) + 1);
-      
-      const ansi_escape:String = ANSI.RED + ANSI.INVERT;
-      var dupe:String = source_code.substring(0, t.from) + ansi_escape + source_code.substring(t.from, t.to) + ANSI.NORMAL + source_code.substring(t.to);
-            
-      return dupe.substring(a, z+(ansi_escape + ANSI.NORMAL).length);
-      
-    }
 
 
     public function expression(rbp:Number):Object {
@@ -550,7 +321,6 @@ package org.sixsided.scripting.SJS {
           var t:Object = token;
           next();
           if(t.nud == undefined) {
-            trace(formattedSyntaxError(t));
             throw new SyntaxError("Unexpected " + t.id + " token:  ``" + t.value + "''" + " at char:" + t.from + "-" + t.to + " || line: " + offending_line(t.from));
           }
           var lhs:Object = t.nud();
@@ -608,120 +378,6 @@ package org.sixsided.scripting.SJS {
           }
           return stmts;
       }     
-
-      /***********************************************************
-      *
-      *    CODEGEN
-      *
-      ***********************************************************/
-
-    public function emit1(opcode:*, ...ignore) : void {
-      emit(opcode);
-    }
-    
-    public function emit(... opcodes) : void {
-      //var msg = '';
-      for(var i:int=0; i<opcodes.length;i++){
-          /*log('[emit]', opcodes[i]);*/
-          generated_code.push(opcodes[i]);
-      }
-    }
-
-    public function remit(token:Object):void {
-      generated_code.pop();
-      emit(token);
-    }
-
-    public function emit_lit(v:*):void {
-      emit('LIT');
-      emit(v);
-    }
-
-    public function emit_prefix(node:Object, op:*):void {
-      C(node); emit(op);
-    }
-    public function emit_infix(n1:Object, n2:Object, op:*):void {
-      C(n1); C(n2); emit(op);
-    }
-
-    // usage = j = emit_jump_returning_patcher(VM.JUMPFALSE); ... emit a bunch of stuff ... j();
-    // opcodes are:  JUMP|JUMPFALSE <offset>
-    // The offset is from the address of JUMPFALSE, not of <offset>
-  public function emit_jump_returning_patcher(opcode:*):Function {
-      emit(opcode);
-      var here:int = generated_code.length;
-      function patcher():void { 
-        generated_code[here] = generated_code.length - here - 1; // decrement to factor in the <offset> literal
-      }
-      emit('@patch'); // placeholder @here
-      return patcher;
-  }
-          
-          
-  public function backjumper(opcode:*):Function {
-    // opcodes emitted:  JUMP|JUMPFALSE <offset>
-    // currently uses only JUMP, but will need JUMPFALSE to support "do { ... } while(test)" semantics    (TBD)
-      var here:int = generated_code.length;
-      return function():void { 
-        emit(opcode);
-        var offset:int = here - generated_code.length - 1; // decrement to factor in the <offset> literal
-        // log(" @ @ @ EMIT BACKJUMP: ", opcode, offset);
-        emit(offset);
-      }
-  }
-          
-      // public var drops_needed:int = 0;                 // fixme: this seems really incorrect.  take multiple assignment out?
-      // public function need_drop():void { drops_needed++; }  // see assignment()  ^^^... no, make codegen return and concat arrays recursively
-    
-    public function C(node:Object, is_lhs:Boolean=false):void {  
-      if(!node) {
-        trace('empty node reached');
-        return;
-      }
- 
-      // TODO: if multiple assignment: MARK .. C ... CLEARTOMARK
-      
-       if(node is Array) { // statements or argument lists
-        for(var i:int=0;i<node.length;i++) {
-            C(node[i], is_lhs);
-            /*emit(VM.DROPALL);*/
-            // we might need to drop some leftover values from a multiple assignment
-            // while(drops_needed > 0) { 
-            //   log('emitting drop after multiple assignment,', drops_needed, 'remaining');
-            //   emit(VM.DROP);
-            //   drops_needed--;
-            // }
-        }
-      } else {
-        if(!node.hasOwnProperty('codegen')) { 
-          throw new SyntaxError('No Codegen for '+node.name+'#'+node.id+'='+node.value);
-        } else {
-          node.codegen(is_lhs);
-        }
-      }
-    }
-    
-    
-    // for code like " a { b c } d  ", return [a, [b, c], d]
-    public function codegen_block(node:Object):*{
-      var orig_code:Array = generated_code;
-      generated_code = [];
-/*    log('compiling block');*/
-      C(node);
-      var block_code:Array = generated_code;
-      generated_code = orig_code;
-/*    log('returning block', Inspector.inspect(block_code));*/
-      return block_code;
-    }
-    
-
-    public function C_hash(o:Object):void{
-      for(var k:String in o) {
-        emit('LIT', k);
-        C(o[k]);
-      }
-    }
-
 
 /* 
 Note: it might be worth storing the symbol table as an {id:symbol} hash
@@ -789,17 +445,13 @@ could store the var's stack index.  maybe?
       //primitives
       symtab[ID_NAME] = {
           nud:function():Object {return this;},
-          toString:function():String {return this.value;},
-          codegen:function(am_lhs:Boolean):void {  emit(am_lhs ? 'LIT' : 'VAL',  this.value); }  // need a reference if we're assigning to the var; the value otherwise.
+          toString:function():String {return this.value;}          
       };
 
       symtab[ID_LITERAL] = {
           nud:function():Object {return this;},
           toString:function():String{return this.value;},
-          bpow:0,
-          codegen:function():void { 
-            emit_lit(this.value); 
-          } // tbd test w/ lexer change to parse numbers
+          bpow:0
       };
   
       //assignment
@@ -811,24 +463,12 @@ could store the var's stack index.  maybe?
       assignment('/=', 130, VM.DIV);
       assignment('%=', 130, VM.MOD);
 
-      affix('++', 140, VM.ADD);
-      affix('--', 140, VM.SUB);      
-
-
       prefix('!', 140, VM.NOT);
       infix('+', 120, VM.ADD);
       infix('-', 120, '*minus*');
       prefix('-', 120, '*unary minus*');
 
       // tbd: different codegens by arity?
-      symtab['-'].codegen = function():void { 
-          if(this.second) 
-          emit_infix(this.first, this.second, VM.SUB);
-          else {
-              emit_prefix(this.first, VM.NEG);
-          }
-      };
-        
 
       infix('*', 130, VM.MUL);
       infix('/', 130, VM.DIV);
@@ -843,27 +483,12 @@ could store the var's stack index.  maybe?
       infix('==', 90, VM.EQL);
 
   
-      infix_thunk_rhs('&&', 50, VM.AND);
-      infix_thunk_rhs('||', 40, VM.OR);
+      infix_thunk_second('&&', 50, VM.AND);
+      infix_thunk_second('||', 40, VM.OR);
 
       
        infix('.', 160, VM.GETINDEX); // a.b.c indexing operator
-       //indexing
-       // RHS [k(1) dot... k(n-1) dot] dict k(n) put
-       // where dot has stack effect ( o k -- o[k] )
-       // a.b.c.d = e -- $ e $a # b dot # c dot # d dot dict 
-       symtab['.'].codegen = function(is_lhs:Boolean /* assignment? */):void {
-           // log('.', this.first.value, this.second.value, is_lhs ? 'LHS' : 'RHS');
-           if(this.first.id != '.') {
-               C(this.first, false); // use VAL
-           } else {
-               C(this.first, true);  // use LIT
-           }
-           C(this.second, true); // treat as LHS until the last item in the dot-chain
-           log('# emit ' + VM.GETINDEX);
-           emit(VM.GETINDEX);
-       };
-            
+      
             
     symbol('new');
     symbol('new').bpow = 160;
@@ -876,19 +501,10 @@ could store the var's stack index.  maybe?
         next(')');
         return this;
     };
-    symbol('new').codegen = function():void {
-        emit_lit(this.first.value);
-        emit(VM.MARK);
-        C(this.second);
-        emit(VM.ARRAY);
-        emit(VM.NATIVE_NEW);   // ( constructor [args] -- instance )
-    };
-    
 
             
       symtab['('] = {   
             bpow:160,
-            isFunctionCall:false,
 
             // subexpression
             nud:function():Object{
@@ -903,18 +519,8 @@ could store the var's stack index.  maybe?
                 // will be on '('
                 this.second = parse_argument_list();
                 next(')');
-                this.isFunctionCall = true;
                 return this;
-            },
-        
-            codegen:function():void {
-              C(this.first);
-              emit(VM.MARK);
-              C(this.second);
-              emit(VM.ARRAY);
-              emit(VM.CALL);
-            }
-      };
+            }      };
         
       symtab[')'] = { bpow:-1 };    // ?? fixme
 
@@ -998,54 +604,7 @@ could store the var's stack index.  maybe?
   
         },
 
-        bpow:0,
-        
-        codegen:function():void {
-          /* generates: 
-            LIT "function_name"               
-            MARK   
-              LIT arg1..
-              LIT argN
-            ARRAY
-            -- array of opcodes
-            LIT
-            [
-              LIT local1 LOCAL, ... 
-              LIT localN LOCAL 
-              ... opcodes ...
-            ]
-            CLOSURE
-            
-          */
-          
-          // currently:
-          // function f(a) { var v; trace(v); }  -->  LIT f MARK LIT a LIT v LOCAL ARRAY [ LIT trace MARK LIT v ARRAY CALL ] DEF
-          // desired:
-          // function f(a) { var v; trace(v); }  -->   <MARKER> LIT f MARK LIT a LIT v LOCAL ARRAY LIT trace MARK LIT v ARRAY CALL ] <CLOSURE>
-          
-          // function name literal
-          emit_lit(this.first.value);
-          
-          // arguments
-          emit(VM.MARK);
-          C(this.second, true);
-          emit(VM.ARRAY);
-          
-          // tbd: fix this hack to create locals at the beginning of a function's code block
-          var body:Array = codegen_block(this.third);
-          for each(var v:* in this.scope) { body.unshift(VM.LOCAL); body.unshift(v); body.unshift(VM.LIT); }
-
-          emit(VM.LIT);
-          
-          emit(body);
-          
-          //emit(VM.MARK); emit(VM.EVAL_OFF); body.forEach(emit1); emit(VM.EVAL_ON); emit(VM.ARRAY);  // not the greatest idea
-          emit(VM.CLOSURE);
-          if(!this.first.isAnonymous) {
-            /*trace('emitting drop for named function codegen');*/
-            emit(VM.DROP); // anon function will presumably be assigned to something... although, wait, this kills the module pattern: (function(){...})()
-          }
-        }     
+        bpow:0
       };
 
       symtab['return'] = {
@@ -1057,11 +616,7 @@ could store the var's stack index.  maybe?
               }
               next(';');
               return this;
-          },
-          codegen:function():void {
-                   C(this.first);
-                   emit(VM.RETURN);
-              }
+          }
       };
 
       symtab['['] = {      
@@ -1069,13 +624,10 @@ could store the var's stack index.  maybe?
           // x = [1,2,3]
           nud:function():Object {
               var a:Array = [];
-              
-              if(token.id != ']') {
-                for(;;){
+              for(;;){
                   a.push(expression(0));
                   if(token.id != ',') break;
                   next(',');
-                }
               }
               next(']');
               this.first = a;
@@ -1097,23 +649,8 @@ could store the var's stack index.  maybe?
               return this;
           },
           
-          
           toString:function():String { return "(array " + this.first + ")"; },
-          bpow:160,
-          codegen:function(is_lhs:Boolean = false):void { 
-            log('* * * [.codegen');
-            if(this.subscripting) {
-              //this.first could be a variable name or a literal array, e.g.  [1,2,3][0];  getArray()[0]
-              //we want to throw whatever it is on the stack, then getIndex it.
-              C(this.first, false); // use VAL, in "x = y[z]", we want the value of y on the stack
-              C(this.second, false); // treat as RHS...      // FIXME: a[i] = n fails by using PUTINDEX
-              emit(is_lhs ? VM.PUTINDEX : VM.GETINDEX);
-            } else {
-              emit('MARK'); C(this.first); emit('ARRAY');
-            }
-            log('* * * end [ codegen');
-          }
-
+          bpow:160
       };
 
                            //symtab['.'].codegen = function(is_lhs:Boolean /* assignment? */):void {
@@ -1128,13 +665,6 @@ could store the var's stack index.  maybe?
                            //               emit(VM.GETINDEX);
                            //           };
                            //                                           
-
-
-
-
-
-
-
 
 
 
@@ -1162,8 +692,7 @@ could store the var's stack index.  maybe?
             next('}');
             this.first = obj;
             return this;
-         },
-         codegen:function():void { emit('MARK'); C_hash(this.first);  emit('HASH'); }
+         }
       };
         
             // control structures
@@ -1194,22 +723,7 @@ could store the var's stack index.  maybe?
               }
               return this;
           },
-          bpow:0,
-
-          codegen:function():void {
-              C(this.first); // test
-          
-              var patch_if:Function = emit_jump_returning_patcher(VM.JUMPFALSE);
-              C(this.second);
-              patch_if();
-          
-              if(this.third) {
-                var patch_else:Function = emit_jump_returning_patcher(VM.JUMP);
-                patch_if();
-                C(this.third);
-                patch_else();  // rewrite @else to point after "if{...}else{...}" instructions.
-              }
-            }        
+          bpow:0
       };
 
       symtab['while'] = {
@@ -1224,15 +738,7 @@ could store the var's stack index.  maybe?
               this.second = block;
               return this;
           },
-          bpow:0,
-          codegen:function():void {
-              var emit_backjump_to_test:Function = backjumper(VM.JUMP);
-              C(this.first);
-              var patch_jump_over_body:Function = emit_jump_returning_patcher(VM.JUMPFALSE);
-              C(this.second);
-              emit_backjump_to_test();
-              patch_jump_over_body();
-            }          
+          bpow:0 
       };
 
 
@@ -1254,17 +760,7 @@ could store the var's stack index.  maybe?
            
            return this; // UNTESTED
           },
-          bpow:0,
-          codegen:function():void{
-              C(this.first[0]);                         // i=0
-              var backjump_to_test:Function = backjumper(VM.JUMP);
-              C(this.first[1]);                         // i<10
-              var jumpfalse_to_here:Function = emit_jump_returning_patcher(VM.JUMPFALSE);
-              C(this.first[2]);                         // i += 1  
-              C(this.second);                           // trace(i);
-              backjump_to_test();                       // } --> JUMP to i < 10
-              jumpfalse_to_here();                      // patch the JUMPFALSE after "i<10" 
-          }
+          bpow:0
       };
 
 
@@ -1293,41 +789,9 @@ could store the var's stack index.  maybe?
           bpow:0,
           toString:function():String {
               return '(var '+ this.first + ')';
-          },
-          codegen:function():void{
-            /*            trace("var codegen doesn't do anything; it's just a marker.");*/
-            /* TODO: codegen should prefix locals with LOCAL opcode(TBD) */
-            C(this.first, true);
           }
       };
-      
-      /*
-        await fn();
-        doSomething(x(), await y());      
-      */
-        
-      symtab['await'] = {
-        expectFunctionCall:function():void {
-            if(!this.first.isFunctionCall) throw "Expected function call after await";
-        },
-        
-        std:function():Object {
-          this.first = statement();
-          this.expectFunctionCall();
-          return this;
-        },
-        
-        nud:function():Object {
-          this.first = expression(0);
-          this.expectFunctionCall();
-          return this;
-        },
-        
-        codegen:function():void {
-          C(this.first); // since it's an async method call, it will leave a Promise on the stack
-          emit(VM.AWAIT);
-        }
-      }
+
 
 
             
