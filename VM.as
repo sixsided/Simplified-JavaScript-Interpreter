@@ -19,7 +19,10 @@ package org.sixsided.scripting.SJS {
   import flash.display.*;
   import org.sixsided.util.Promise;
 
-  public class VM {
+  import flash.events.Event;
+  import flash.events.EventDispatcher;
+  
+  public class VM extends EventDispatcher {
 /*
 **       
 **      ERRORS
@@ -76,6 +79,9 @@ package org.sixsided.scripting.SJS {
       //public static const HALT:String        = 'HALT';
 
 
+      // event constants
+      public static const EXECUTION_COMPLETE:String = 'VM.EXECUTION_COMPLETE';
+      
 /*
 **       
 **          STATIC VARS, METHODS
@@ -235,7 +241,10 @@ package org.sixsided.scripting.SJS {
             }
             log(w, ' ( ', os.join(' '), ' ) ', '# '+os.length);
             op();
-            if(!running) return this; // bail from AWAIT instruction
+            if(!running) {
+              /*trace('... bailing at end of cycle, call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');*/
+              return this; // bail from AWAIT instruction
+            }
           }
           cpop();
         }
@@ -246,6 +255,7 @@ package org.sixsided.scripting.SJS {
 */
       log('    VM Finished run. os: ', '[' + os.join(', ') + ']', ' dicts: ', Inspector.inspect(system_dicts), 'traces:', Inspector.inspect(dbg_traces), "\n");
       running = false;
+      dispatchEvent(new Event(EXECUTION_COMPLETE));
       return this;
     };
     
