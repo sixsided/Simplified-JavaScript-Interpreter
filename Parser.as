@@ -1238,7 +1238,7 @@ could store the var's stack index.  maybe?
 
       symtab['for'] = {
           std:function():Object {
-           // for (initial-expr ; test-expr ; repeat-expr ) { body }
+           // for (initial-expr ; test-expr ; final-expr ) { body }
            next('(');
            var init:Object = expression(0);
            next(';');
@@ -1255,13 +1255,14 @@ could store the var's stack index.  maybe?
            return this; // UNTESTED
           },
           bpow:0,
+                                                        // "for(i = 0; i < 10; i++) { trace(i); }"
           codegen:function():void{
-              C(this.first[0]);                         // i=0
+              C(this.first[0]);                         // i = 0
               var backjump_to_test:Function = backjumper(VM.JUMP);
-              C(this.first[1]);                         // i<10
+              C(this.first[1]);                         // i < 10
               var jumpfalse_to_here:Function = emit_jump_returning_patcher(VM.JUMPFALSE);
-              C(this.first[2]);                         // i += 1  
               C(this.second);                           // trace(i);
+              C(this.first[2]);                         // i ++
               backjump_to_test();                       // } --> JUMP to i < 10
               jumpfalse_to_here();                      // patch the JUMPFALSE after "i<10" 
           }
