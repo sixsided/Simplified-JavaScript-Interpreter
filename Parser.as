@@ -228,8 +228,15 @@ package org.sixsided.scripting.SJS {
           return generated_code.join(' ');
         };
 
-        private function _annotateVarsWithType(e:*, i:int, a:Array) : String {
-          if(i == 0 || a[i-1] != VM.LIT) return e;
+        private function _annotateVarsWithType(e:*, i:int, a:Array) : String {          
+          if(i == 0 || a[i-1] != VM.LIT) {
+            return e;  // don't annotate non-literals with type
+          }
+          
+          if(e is Array) {
+            return "[ " + e.map(_annotateVarsWithType).join(' ') + ' ]'
+          }
+          
           return typeof(e) + ':' + e;          
           /*return ':' + e;*/
         }
@@ -812,8 +819,15 @@ could store the var's stack index.  maybe?
       assignment('%=', 130, VM.MOD);
 
       affix('++', 140, VM.ADD);
-      affix('--', 140, VM.SUB);      
-
+      affix('--', 140, VM.SUB);
+            
+      /*symtab['...'] = {
+        nud:function():Object { return this; },
+        codegen:function(am_lhs:Boolean):void {
+          // ok, so we pass to the function a promise to resume execution here
+          emit(VM.PUSH_RESUME_PROMISE); // Promise so we can pass an error back to the VM if the function fails
+        }
+      }*/
 
       prefix('!', 140, VM.NOT);
       infix('+', 120, VM.ADD);
@@ -908,11 +922,26 @@ could store the var's stack index.  maybe?
             },
         
             codegen:function():void {
+              /*// recurse and find "..." async in argument list?
+              //whatabout f(..., f2(...))
+              // : translates to await f(resumeLastAwait, await f2(resumeLastAwait))
+              //
+              function isEllipsis(arg:Object, i:int, a:Array):Boolean {
+                return arg.id == '...';
+              }*/
+              
+              /*var isAsync:Boolean = this.second.some(isEllipsis);*/
+
               C(this.first);
               emit(VM.MARK);
               C(this.second);
               emit(VM.ARRAY);
               emit(VM.CALL);
+
+              /*if(this.second.some(isEllipsis)) {
+                emit(VM.AWAIT);
+              }*/
+
             }
       };
         
@@ -1308,11 +1337,19 @@ could store the var's stack index.  maybe?
       */
         
       symtab['await'] = {
+        // isStatement flag exists so we can clear the stack after statements like
+        // "await promiseReturnsSomeValues();"
+        // but not in expressions like 
+        // "myArray = promiseReturnsSomeValues();"
+        
+        isStatement : false, 
+        
         expectFunctionCall:function():void {
             if(!this.first.isFunctionCall) throw "Expected function call after await";
         },
         
         std:function():Object {
+          this.isStatement = true;
           this.first = statement();
           this.expectFunctionCall();
           return this;
@@ -1325,8 +1362,15 @@ could store the var's stack index.  maybe?
         },
         
         codegen:function():void {
-          C(this.first); // since it's an async method call, it will leave a Promise on the stack
-          emit(VM.AWAIT);
+          if(this.isStatement) emit(VM.MARK)
+          C(this.first);  // There should be an async method call somewhere in this subtree, 
+                          // which will leave a Promise on the stack.
+                         
+          emit(VM.AWAIT); // AWAIT will then consume the Promise; its fulfillment will resume the VM
+                          // with one value on the stack.
+                          // if (this.first) consumed it, fine; in case it hasn't, clear to the mark:
+                          
+          if(this.isStatement) emit(VM.CLEARTOMARK);
         }
       }
 

@@ -61,7 +61,7 @@ package org.sixsided.scripting.SJS {
       public static const NOT:String         = 'NOT';
       public static const CLOSURE:String     = 'CLOSURE';
       public static const MARK:String        = 'MARK';
-      /*public static const CLEARTOMARK:String        = 'CLEARTOMARK';*/
+      public static const CLEARTOMARK:String        = 'CLEARTOMARK';
       public static const ARRAY:String       = 'ARRAY';
       public static const HASH:String        = 'HASH';
       public static const JUMP:String        = 'JUMP';
@@ -76,6 +76,7 @@ package org.sixsided.scripting.SJS {
       public static const LOCAL:String       = 'LOCAL';
       public static const NATIVE_NEW:String  = 'NATIVE_NEW';
       public static const AWAIT:String       = 'AWAIT';
+      public static const PUSH_RESUME_PROMISE:String       = 'PUSH_RESUME_PROMISE';
       //public static const HALT:String        = 'HALT';
 
 
@@ -407,8 +408,8 @@ package org.sixsided.scripting.SJS {
         //stack manipulation
         private function DUP()   :void{ var p:* = opop(); opush(p); opush(p); }
         private function DROP()  :void{ opop(); }
-        /*private function DROPALL()  :void{ os.length = 0; }
-        private function CLEARTOMARK()  :void{ yanktomark(); }*/
+        /*private function DROPALL()  :void{ os.length = 0; }*/
+        private function CLEARTOMARK()  :void{ yanktomark(); }
         private function SWAP()  :void{ var a:* = opop(); var b  : * = opop(); opush(a); opush(b); }
         private function INDEX() :void{ var index :*= opop(); opush(os[index]); }
 
@@ -611,8 +612,27 @@ package org.sixsided.scripting.SJS {
             opush(instance);            
         }
         
-        private function _resumeFromPromise(...ignoredArgs) : void {
-          trace('_resumeFromPromise', ignoredArgs);
+        private function _resumeFromPromise(...promiseFulfillArgs) : void {
+          trace('_resumeFromPromise', promiseFulfillArgs);
+          // convert all cases to 1-arg.
+          //    0: null
+          //    1: pass through
+          //    N: pass as an array 
+
+          if(promiseFulfillArgs.length == 0) {
+            opush(null);
+          } else if(promiseFulfillArgs.length == 1) {
+            opush(promiseFulfillArgs[0]);
+          } else {
+            opush(promiseFulfillArgs);
+          }
+          
+          
+          /*for (var i:int = 0; i < promiseFulfillArgs.length; i++)
+          {
+            opush(promiseFulfillArgs[i]);
+          }*/
+          /*opush(value);*/
           run();
         }
         
@@ -620,6 +640,17 @@ package org.sixsided.scripting.SJS {
           var p:Promise = opop();
           halt();
           p.onFulfill(_resumeFromPromise);
+        }
+            
+        private function PUSH_RESUME_PROMISE():void {
+          var p:Promise = new Promise;
+          p.onFulfill(_resumeFromPromise);
+          opush(p);
+          
+          // p.onFail(_resumeWithException)
+          // TODO: We're using Promise so we can pass an error back to the VM if the function fails,
+          // but we'll need to put some kind of exception handling in place before we can handle
+          // such errors.
         }
             
         private function NOP():void{ 
