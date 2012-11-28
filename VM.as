@@ -18,6 +18,7 @@ package org.sixsided.scripting.SJS {
   import flash.geom.*;
   import flash.display.*;
   import org.sixsided.util.Promise;
+  import org.sixsided.util.ANSI;  
 
   import flash.events.Event;
   import flash.events.EventDispatcher;
@@ -36,6 +37,8 @@ package org.sixsided.scripting.SJS {
 **      OPCODES
 **
 */
+  public static var _VM_ID:int = 0;
+  public var _vm_id:String = ""+_VM_ID++;;
 
       public static const NOP:String         = 'NOP';
       public static const DUP:String         = 'DUP';
@@ -89,7 +92,11 @@ package org.sixsided.scripting.SJS {
 **
 */
 
-    public static var registry:Object = {}; // for importing Tweener, etc.   formerly 'uber_globals'
+    public static var registry:Object = {
+      Math:Math,
+      Date:Date,
+      'null':null      
+    }; // for importing Tweener, etc.   formerly 'uber_globals'
     //public static var dbg_last_vm:VM;          // debugging hack
 
     public static function register(key:String, value:*) : void {
@@ -151,10 +158,22 @@ package org.sixsided.scripting.SJS {
 /*      trace('injected globals with ', Inspector.inspect(o), ' yielding: ', Inspector.inspect(system_dicts));*/
     };
     public function set_global(k:String, v:*) : void {
-      //trace('set_global', k, v);
+/*      _vmTrace('set_global', k, v);*/
       vm_globals[k] = v;
     }
     
+    public function setGlobal(k:String, v:*) : void {
+      set_global(k, v);
+    }
+    
+    
+
+  
+    public function log(...args) : void {
+      if(tracing) {
+        _vmTrace('| ' +  args.join(' '));
+      }
+    }
 
 
   /***********************************************************
@@ -164,16 +183,21 @@ package org.sixsided.scripting.SJS {
   ***********************************************************/
 
 
+    private function _vmTrace(...args) : void {
+      trace('[VM#'+_vm_id+']', args.join(' '));
+    }
+    private function _vmUserTrace(...args) : void {
+      trace('[VM#'+_vm_id+']', ANSI.cyan(args.join(' ')));
+    }
+
     public function VM() {
         //VM.dbg_last_vm = this;
         // FIXME: trace should probably be injected from the test suite -- this may be useful for debugging, though.
         // Will need a listener or something for getting at the traces.
         //var self:VM = this;
-        /*set_global('trace', vmTrace);*/
+        set_global('trace', _vmUserTrace);
         set_global('halt', halt);
-        set_global('Math', Math);
-        set_global('Date', Date);
-        set_global('null', null);
+
         // set_global('undefined', undefined);        
 
         //system_dicts = [{  'trace':function():void { 
@@ -191,9 +215,14 @@ package org.sixsided.scripting.SJS {
       trace('[SJS] ', arguments); 
       dbg_traces.push(arguments); 
     }*/
+    
+    public function pushDict(dict:Object) : void {
+        pushdict(dict);
+    }
+
 
     public function pushdict(dict:Object) : void {
-      system_dicts.push(dict);
+      system_dicts.unshift(dict);
     }
     
     public function load_opcode_string(code:String) : VM {
@@ -210,22 +239,21 @@ package org.sixsided.scripting.SJS {
         return this;
     }
 
-  
-    public function log(...args) : void {
-      if(tracing) {
-        trace('| ' +  args.join(' '));
-      }
-    }
       
     public function halt() : void {
       log('~~halt at ', call_stack[0].pc);
       running = false;
     }
+    
+    public function clearCallStack() : void {
+        call_stack = [];
+        running = false;
+    }
 
     public function run() : VM {
       var e:Error;
       var cs:Array = call_stack;
-      trace('VM.run; call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');
+      //trace('VM.run; call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');
       running = true; // HALT operator can stop it.  Just call vm.run() to resume;
    //   try { 
         while(cs.length) {
@@ -240,7 +268,7 @@ package org.sixsided.scripting.SJS {
             if(!(op)) {
               throw new Error('VM got unknown operator ``' + w ); // + "'' in [" + cs[0].code.join(',') + ']');              
             }
-            log(w, ' ( ', os.join(' '), ' ) ', '# '+os.length);
+            log(w, ANSI.wrap(ANSI.BLUE, ' ( ' + _osAsString + ' ) '));
             op();
             if(!running) {
               /*trace('... bailing at end of cycle, call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');*/
@@ -259,6 +287,13 @@ package org.sixsided.scripting.SJS {
       dispatchEvent(new Event(EXECUTION_COMPLETE));
       return this;
     };
+    
+    public function onComplete(fn:Function) : void {
+        addEventListener(EXECUTION_COMPLETE, function _doOnComplete(...args) : void {
+            removeEventListener(EXECUTION_COMPLETE, _doOnComplete);
+            fn();
+        });
+    }
     
         
           // debug
@@ -302,7 +337,7 @@ package org.sixsided.scripting.SJS {
       return os.map(function(e:*, ...args) : String { if (e is Function) { return '*fn*'; } return e; }).join(' ');
     }
     
-    public function opush(op:*):void { log(op, '->', '(', _osAsString, ')'); os.unshift(op); };
+    public function opush(op:*):void { os.unshift(op); log(op, '->', '(', _osAsString, ')'); };
     public function opop():* { log(os[0], '<-', '(', _osAsString, ')'); return os.shift(); };
     public function numpop():Number { return parseFloat(opop()); };
     public function bin_ops():Array { return [opop(), opop() ].reverse(); };
@@ -332,25 +367,32 @@ package org.sixsided.scripting.SJS {
         var safety:int = 255;
         while(sf && safety--) {          
           if(sf.vars.hasOwnProperty(key)) {
-            //log('~ in', v);
+            log('~ set_var', key, 'in stack frame');
             sf.vars[key] = value;
             return;
           }
           sf = sf.parent;
         }
-        //log('~ in vm globals');
+        log('~ set_var',key,' in vm globals');
         vm_globals[key] = value; // write to the bottom stack frame's vars; the global dicts are read-only
         //log(Inspector.inspect(call_stack));
         //log(Inspector.inspect(vm_globals));
       };
   
       // TBD: provide a list_vars function to display defined names in system_dicts, vm_globals, and the call_stack
+      public function findVar(key:String) : * {
+        return find_var(key);
+      }
+      
       public function find_var(key:String) : * {
         //log(Inspector.inspect(system_dicts));
         // log(Inspector.inspect(vm_globals));
+        /*_vmTrace('find_var('+key+'), given globals:');
+                for(var k:String in vm_globals) { _vmTrace('g', k); }
+        */
         var v:* = _find_var(key);
         if(undefined === v) {
-          trace('* * * [VM] find_var('+key+') : not found');
+          _vmTrace('* * *find_var('+key+') : not found');
           // trace(Inspector.inspect(vm_globals));
           return null;
         }
@@ -362,32 +404,39 @@ package org.sixsided.scripting.SJS {
   
       private function _find_var(key:String) : * {
         // Look for the var in the current function call's scope...
+        // * * * FIXME: dynamic scope.  We want lexical scope.
+        //trace('* * * _find_var(', key, ') * * *');
+        //trace("globals:", JSON.stringify(vm_globals));
         var sf:StackFrame = call_stack[0];
         var safety:int = 255;
         while(sf && safety--) {          
           if(sf.vars.hasOwnProperty(key)) {
+            //trace('~ found var in call frame');
             return sf.vars[key];
           }
           sf = sf.parent;
         }
         
-        // ( Could support dynamic scope here by walking the call stack. )
         
         // ... then in the globals
         if(vm_globals.hasOwnProperty(key)) {
+          //trace('~ found var in vm globals');
           return vm_globals[key];        
         }
         
         // ... then in the system dictionaries ...  (used only by unit tests and to provide the trace and halt functions) 
-        for (var i:int=0;i<system_dicts.length; i++) {
+        // we shift items onto system_dicts, so last-added will be first-found
+        for (var i:int = 0; i < system_dicts.length; i++) {
           var g:Object = system_dicts[i];
           if(g.hasOwnProperty(key)) {
+            //trace('~ found var in system dict #', i);
             return g[key];
           }
         }
         
         // ... and finally, in the registry.       
         if(VM.registry.hasOwnProperty(key)) {
+          //trace('~ found var in registry');
           return VM.registry[key];
         }
         
@@ -465,10 +514,18 @@ package org.sixsided.scripting.SJS {
             var body:Array= opop();
             var args:Array= opop();
             var name:String = opop();
-            log('~~~~CLOSURE', name, '(', args,')', '{', body, '}');
+            trace('~~~~CLOSURE', name, '(', args,')', '{', body, '}');
+            
+            /*            
             closure = wrapVmFunc( new VmFunc(name, args, body));
             set_var(name, closure);
             opush(closure);
+            */
+            
+            // FIXME: this version doesn't work with functions-returning-functions
+            var vmf:VmFunc = new VmFunc(name, args, body);
+            set_var(name, vmf);
+            opush(vmf);
         }
 
       //structures
@@ -498,14 +555,30 @@ package org.sixsided.scripting.SJS {
             }
         }
 
+        public function callScriptFunction(fnName:String, args:Array=null) : void {
+          _vmTrace('callScriptFunction', fnName);
+          var fn:* = find_var(fnName);
+          if(fn is Function) {
+            fn.apply(null, args);
+          } else if(fn is VmFunc) {
+            cpush(fn.body, conformArgumentListToVmFuncArgumentHash(args || [], fn), call_stack[0]);
+            run();
+          } else {
+            throw "Tried to callScriptFunction on object "  + fn;
+          }
+        }
         
         private function wrapVmFunc(fn:VmFunc):Function{
+          // wrap VM functions in AS3 closures so we can pass them to AS3
+          // as event listeners, etc, that will fire up the vm
+
           var vm:VM = this;
           var enclosingLexicalScope:StackFrame = call_stack[0];
 
           // the function will be reassigned to anon0 within the VM,
           // but the closure created here will be a new one referencing
           // the current environment in the enclosing function.
+          
 
           return function(...args):void {
             log('calling wrapped vm func ``' +  fn.name + '\'\' with arguments: ' + Inspector.inspect(args));
@@ -517,7 +590,7 @@ package org.sixsided.scripting.SJS {
           }
         }  
         
-        // untested
+        // fixme: replace for/in with for(i...
         private function conformArgumentListToVmFuncArgumentHash(func_args:Array, fn:VmFunc):Object {
           var ret:Object = {};
           for (var i:String in fn.args) {
@@ -526,20 +599,41 @@ package org.sixsided.scripting.SJS {
           }
           return ret;
         }
-
-         private function CALL():void{ 
+        
+/*      
+  // for hotloading -- define a "clone me" function externally
+  // but make it a noop in the clone so you don't get
+  // infinite recursion
+  
+      public function clone() : VM {
+            var ret:VM = new VM;
+            ret.load(call_stack[0].code);
+            return ret;
+        }
+*/
+         private function CALL():void { // (closure args_array -- return_value 
             var func_args:* = opop();
             var fn:* = opop();
-             
+            var rslt:*;
+            
             if(fn is Function) {
                 // TODO -- supply a "this" context for scripted functions?
                 // FIXME -- How to distinguish between functions returning nothing and functions
                 //          returning undefined? For now, we don't.
-                var rslt:* = fn.apply(null, func_args);
+                rslt = fn.apply(null, func_args);
                 if(rslt !== undefined) opush(rslt); 
                 return;
+            } else if(fn is VmFunc) {
+              // we allow both cases because they're both useful:
+              //  wrapped functions for passing to AS3 as e.g. event listeners which retain
+              //  a reference to this VM in their closures;
+              // unwrapped functions so we can run code from another VM in our own context
+              cpush(fn.body, conformArgumentListToVmFuncArgumentHash(func_args, fn), call_stack[0]);
+              if(depth > VM.MAX_RECURSION_DEPTH) { 
+                throw new Error('org.sixsided.scripting.SJS.VM: too much recursion in' + fn.name);
+              }
             } else {
-              trace('* * * * * VM.CALL tried to call nonfunction value "' + fn + '": ' + typeof(fn) + ' * * * * * *');
+                trace('* * * * * VM.CALL tried to call nonfunction value "' + fn + '": ' + typeof(fn) + ' * * * * * *');
             }
          }
      
@@ -563,6 +657,18 @@ package org.sixsided.scripting.SJS {
           set_var(key, value);
           // opush(value);
         }
+
+        private function PUTLOCAL():void{  // (value key -- value )
+          // TODO: figure out scopes in parser/codegen
+          //       or just generate PUTLOCAL anywhere you see "var x;" (gets null or undefined) or "var x = value":
+          var key:String = opop();
+          var value:* = opop();
+          log('PUTLOCAL', value, key);
+          call_stack[0].vars[key] = value;
+          
+          // opush(value);
+        }
+        
         
         // value object key PUTINDEX
         private function PUTINDEX():void{  // ( value object key -- value )

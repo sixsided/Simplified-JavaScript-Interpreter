@@ -1324,7 +1324,7 @@ could store the var's stack index.  maybe?
           toString:function():String {
               return '(var '+ this.first + ')';
           },
-          codegen:function():void{
+          codegen:function():void{            
             /*            trace("var codegen doesn't do anything; it's just a marker.");*/
             /* TODO: codegen should prefix locals with LOCAL opcode(TBD) */
             C(this.first, true);
