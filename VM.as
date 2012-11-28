@@ -331,6 +331,12 @@ package org.sixsided.scripting.SJS {
       depth--; 
       call_stack.shift(); 
     };
+    private function fcall(fn:VmFunc, args:Array) : void {
+      depth++; 
+      call_stack.unshift(new StackFrame(fn.body,
+                                        conformArgumentListToVmFuncArgumentHash(args, fn),
+                                        fn.parentScope));
+    }
 
 // stack manipulation
     private function get _osAsString() : String {
@@ -523,7 +529,7 @@ package org.sixsided.scripting.SJS {
             */
             
             // FIXME: this version doesn't work with functions-returning-functions
-            var vmf:VmFunc = new VmFunc(name, args, body);
+            var vmf:VmFunc = new VmFunc(name, args, body, call_stack[0]);
             set_var(name, vmf);
             opush(vmf);
         }
@@ -561,19 +567,19 @@ package org.sixsided.scripting.SJS {
           if(fn is Function) {
             fn.apply(null, args);
           } else if(fn is VmFunc) {
-            cpush(fn.body, conformArgumentListToVmFuncArgumentHash(args || [], fn), call_stack[0]);
+            fcall(fn, args);
             run();
           } else {
             throw "Tried to callScriptFunction on object "  + fn;
           }
         }
         
+        // [] untested
         private function wrapVmFunc(fn:VmFunc):Function{
           // wrap VM functions in AS3 closures so we can pass them to AS3
           // as event listeners, etc, that will fire up the vm
 
           var vm:VM = this;
-          var enclosingLexicalScope:StackFrame = call_stack[0];
 
           // the function will be reassigned to anon0 within the VM,
           // but the closure created here will be a new one referencing
@@ -582,7 +588,7 @@ package org.sixsided.scripting.SJS {
 
           return function(...args):void {
             log('calling wrapped vm func ``' +  fn.name + '\'\' with arguments: ' + Inspector.inspect(args));
-            vm.cpush(fn.body, conformArgumentListToVmFuncArgumentHash(args, fn), enclosingLexicalScope);
+            vm.fcall(fn, args);
             if(vm.depth > VM.MAX_RECURSION_DEPTH) { 
               throw new Error('org.sixsided.scripting.SJS.VM: too much recursion in' + fn.name);
             }
@@ -628,7 +634,8 @@ package org.sixsided.scripting.SJS {
               //  wrapped functions for passing to AS3 as e.g. event listeners which retain
               //  a reference to this VM in their closures;
               // unwrapped functions so we can run code from another VM in our own context
-              cpush(fn.body, conformArgumentListToVmFuncArgumentHash(func_args, fn), call_stack[0]);
+              fcall(fn, func_args);
+              
               if(depth > VM.MAX_RECURSION_DEPTH) { 
                 throw new Error('org.sixsided.scripting.SJS.VM: too much recursion in' + fn.name);
               }
