@@ -28,11 +28,15 @@ package org.sixsided.scripting.SJS {
         if(pc >= this.code.length) {
           /*trace('[StackFrame] next_word exhausted StackFrame @', pc);*/
           this.exhausted = true;  
-          return VM.NOP; // fixme reference Opcode table object
+          return VM.NOP;
         }
 
         // console.log('StackFrame.next_word', this.pc, this.code[this.pc]);
         return code[pc++];  
+    }
+    
+    public function prev_word():* {
+      return code[pc-1];
     }
     
     public function toString():String{

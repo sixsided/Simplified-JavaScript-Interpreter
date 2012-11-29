@@ -136,7 +136,6 @@ package org.sixsided.scripting.SJS {
 
      // recursion limit
      public static const MAX_RECURSION_DEPTH : int = 64;
-     public var depth:Number = 0; 
     
      public var tracing:Boolean = false;
 
@@ -249,44 +248,54 @@ package org.sixsided.scripting.SJS {
         call_stack = [];
         running = false;
     }
+    
 
-    public function run() : VM {
-      var e:Error;
+    // == run ==
+    // some notes:
+    // Opcodes can only legally be of type String, although we interleave other types of data with them.
+    // we loop until reaching the end of the last stack frame, or until halted (running = false).
+    // we wrap (op) in extra parentheses to quiet Flash's "function where object expected" warning.
+    // we stash the callframe at the top of the inner loop in case next_word exhausts the StackFrame, causing it to be popped at the end of the loop
+
+    // have to do checks in loop in case we:
+    //    - popped a frame last time through
+    //    - exhausted callframe during run loop -- probably if/else jumping to end
+    
+
+        //trace('VM.run; call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');
+        //trace('... bailing at end of cycle, call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');
+        // log('    VM Finished run. os: ', '[' + os.join(', ') + ']', ' dicts: ', Inspector.inspect(system_dicts), 'traces:', Inspector.inspect(dbg_traces), "\n");
+        //log(w, ANSI.wrap(ANSI.BLUE, ' ( ' + _osAsString + ' ) '));
+        
+    private function get stacktop():StackFrame {
+      return call_stack[0];
+    }
+    
+    public function run() : void {
       var cs:Array = call_stack;
-      //trace('VM.run; call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');
-      running = true; // HALT operator can stop it.  Just call vm.run() to resume;
-   //   try { 
-        while(cs.length) {
-          // Run until reaching end of last stack frame, or until halted.
-          while(cs.length && !cs[0].exhausted && running) {                        
-            var cf:StackFrame = cs[0];     // stash it in case next_word exhausts it, causing it to pop off at the end of this while loop
-            var w:String = cf.next_word(); // Opcodes can only legally be of type String, although we interleave other types of data with them.
-            var op:Function = this[w];
-            if(cs[0].exhausted && !(op)) { // extra parentheses to quiet Flash's "function where object expected" warning
-               continue;  // exhausted callframe during run loop -- probably if/else jumping to end
-            }
-            if(!(op)) {
-              throw new Error('VM got unknown operator ``' + w ); // + "'' in [" + cs[0].code.join(',') + ']');              
-            }
-            log(w, ANSI.wrap(ANSI.BLUE, ' ( ' + _osAsString + ' ) '));
-            op();
-            if(!running) {
-              /*trace('... bailing at end of cycle, call_stack depth:', cs.length, 'pc @', cs[0].pc, '/', cs[0].code.length, '(', cs[0].code.join(' '), ')');*/
-              return this; // bail from AWAIT instruction
-            }
+      var op:Function;
+      
+      running = true;
+
+      while(cs.length) {
+        while(cs.length && !stacktop.exhausted && running) {                        
+          op = this[stacktop.next_word()];
+          if(!(op)) {
+            if(stacktop.exhausted) continue;
+            else throw new Error('VM got unknown operator ``' + stacktop.prev_word() + "''");
           }
-          cpop();
+          
+          op();
+          
+          if(!running)  return; // bail from AWAIT instruction
+
         }
- /*   
-      } catch(e) {
-        throw new Error("VM caught exception on word `" + w + "`: ``" + e + "'', current callframe: " + Inspector.inspect(callframe) );
+        cpop(); // automatically return at end of function even if no return statement
       }
-*/
-      log('    VM Finished run. os: ', '[' + os.join(', ') + ']', ' dicts: ', Inspector.inspect(system_dicts), 'traces:', Inspector.inspect(dbg_traces), "\n");
+      
       running = false;
       dispatchEvent(new Event(EXECUTION_COMPLETE));
-      return this;
-    };
+    }
     
     public function onComplete(fn:Function) : void {
         addEventListener(EXECUTION_COMPLETE, function _doOnComplete(...args) : void {
@@ -294,23 +303,7 @@ package org.sixsided.scripting.SJS {
             fn();
         });
     }
-    
-        
-          // debug
-          // function get os () {
-          //   return os;
-          // };
-          // 
-          // function get call_stack() {
-          //   return call_stack;
-          // };
-          // 
-          // function get dbg_traces() {
-          //   return dbg_traces;
-          // };
-          // function get dbgLastCallframe() {
-          //   return dbgLastCallframe;
-          // }
+
         
         
 /**************************************************
@@ -323,16 +316,15 @@ package org.sixsided.scripting.SJS {
 
 
 // call_stack manipulation.  We prefer unshift/shift to push/pop because it's convenient that top-of-stack is always stack[0]
-    private function cpush(code:Array,vars:Object, parent:StackFrame=null) : void { 
-      depth++; 
-      call_stack.unshift(new StackFrame(code,vars, parent || call_stack[0])); 
-    };
+    private function cpush(code:Array,vars:Object) : void { 
+      call_stack.unshift(new StackFrame(code, vars, call_stack[0])); 
+    }
+    
     private function cpop() : void { 
-      depth--; 
       call_stack.shift(); 
-    };
+    }
+    
     private function fcall(fn:VmFunc, args:Array) : void {
-      depth++; 
       call_stack.unshift(new StackFrame(fn.body,
                                         conformArgumentListToVmFuncArgumentHash(args, fn),
                                         fn.parentScope));
@@ -459,19 +451,94 @@ package org.sixsided.scripting.SJS {
 **          OPCODES
 **
 */
+
+/// support
+        // an opcode is unnecessary; use halt() or add suspend() instead.
+        //private function HALT(){
+        //  state = STATE_HALTED;
+        //}
+  
+/*    function _prebind_ops(tokens){
+      log('prebinding tokens:', tokens);
+      for(var i in tokens) {
+        var t = tokens[i];
+        if(this.hasOwnProperty(t)) {
+          tokens[i] = this[t];
+        }
+      }
+      return tokens;
+    };
+*/    
+
+        public function callScriptFunction(fnName:String, args:Array=null) : void {
+          _vmTrace('callScriptFunction', fnName);
+          var fn:* = find_var(fnName);
+          if(fn is Function) {
+            fn.apply(null, args);
+          } else if(fn is VmFunc) {
+            fcall(fn, args);
+            run();
+          } else {
+            throw "Tried to callScriptFunction on object "  + fn;
+          }
+        }
+/*      
+  // for hotloading -- define a "clone me" function externally
+  // but make it a noop in the clone so you don't get
+  // infinite recursion
+  
+      public function clone() : VM {
+            var ret:VM = new VM;
+            ret.load(call_stack[0].code);
+            return ret;
+        }
+*/
+
+        
+        // [] untested
+        private function wrapVmFunc(fn:VmFunc):Function{
+          // wrap VM functions in AS3 closures so we can pass them to AS3
+          // as event listeners, etc, that will fire up the vm
+
+          var vm:VM = this;
+
+          // the function will be reassigned to anon0 within the VM,
+          // but the closure created here will be a new one referencing
+          // the current environment in the enclosing function.
+          
+
+          return function(...args):void {
+            log('calling wrapped vm func ``' +  fn.name + '\'\' with arguments: ' + Inspector.inspect(args));
+            vm.fcall(fn, args);
+            if(call_stack.length > VM.MAX_RECURSION_DEPTH) { 
+              throw new Error('org.sixsided.scripting.SJS.VM: too much recursion in' + fn.name);
+            }
+            vm.run(); // if called from within SJS code, recurses into VM::run(); if called from an AS callback, starts up the interpreter
+          }
+        }  
+        
+        // fixme: replace for/in with for(i...
+        private function conformArgumentListToVmFuncArgumentHash(func_args:Array, fn:VmFunc):Object {
+          var ret:Object = {};
+          for (var i:String in fn.args) {
+            var k:String = fn.args[i];
+            ret[k] = func_args.shift();
+          }
+          return ret;
+        }
     
+    
+        private function NOP():void { }
+
         //stack manipulation
         private function DUP()   :void{ var p:* = opop(); opush(p); opush(p); }
         private function DROP()  :void{ opop(); }
-        /*private function DROPALL()  :void{ os.length = 0; }*/
         private function CLEARTOMARK()  :void{ yanktomark(); }
         private function SWAP()  :void{ var a:* = opop(); var b  : * = opop(); opush(a); opush(b); }
         private function INDEX() :void{ var index :*= opop(); opush(os[index]); }
 
-        //literal
+        //values
         private function LIT():void{   var v:* = next_word();  opush(v);  }
-        
-        //variable
         private function VAL():void{   opush(find_var(next_word())); }
 
         //arithmetic
@@ -497,7 +564,9 @@ package org.sixsided.scripting.SJS {
           if(!!left == value) {
             opush(left);
           } else {
-            cpush(right, {}); // Creates a callframe/scope.  "a && v = 3" will set v in global scope if not defined in the enclosing scope.
+            cpush(right, {}); 
+            // Creates a callframe/scope.  
+            // "a && v = 3" will set v in global scope if not defined in the enclosing scope.
           }
         }
         
@@ -561,62 +630,8 @@ package org.sixsided.scripting.SJS {
             }
         }
 
-        public function callScriptFunction(fnName:String, args:Array=null) : void {
-          _vmTrace('callScriptFunction', fnName);
-          var fn:* = find_var(fnName);
-          if(fn is Function) {
-            fn.apply(null, args);
-          } else if(fn is VmFunc) {
-            fcall(fn, args);
-            run();
-          } else {
-            throw "Tried to callScriptFunction on object "  + fn;
-          }
-        }
         
-        // [] untested
-        private function wrapVmFunc(fn:VmFunc):Function{
-          // wrap VM functions in AS3 closures so we can pass them to AS3
-          // as event listeners, etc, that will fire up the vm
 
-          var vm:VM = this;
-
-          // the function will be reassigned to anon0 within the VM,
-          // but the closure created here will be a new one referencing
-          // the current environment in the enclosing function.
-          
-
-          return function(...args):void {
-            log('calling wrapped vm func ``' +  fn.name + '\'\' with arguments: ' + Inspector.inspect(args));
-            vm.fcall(fn, args);
-            if(vm.depth > VM.MAX_RECURSION_DEPTH) { 
-              throw new Error('org.sixsided.scripting.SJS.VM: too much recursion in' + fn.name);
-            }
-            vm.run(); // if called from within SJS code, recurses into VM::run(); if called from an AS callback, starts up the interpreter
-          }
-        }  
-        
-        // fixme: replace for/in with for(i...
-        private function conformArgumentListToVmFuncArgumentHash(func_args:Array, fn:VmFunc):Object {
-          var ret:Object = {};
-          for (var i:String in fn.args) {
-            var k:String = fn.args[i];
-            ret[k] = func_args.shift();
-          }
-          return ret;
-        }
-        
-/*      
-  // for hotloading -- define a "clone me" function externally
-  // but make it a noop in the clone so you don't get
-  // infinite recursion
-  
-      public function clone() : VM {
-            var ret:VM = new VM;
-            ret.load(call_stack[0].code);
-            return ret;
-        }
-*/
          private function CALL():void { // (closure args_array -- return_value 
             var func_args:* = opop();
             var fn:* = opop();
@@ -636,7 +651,7 @@ package org.sixsided.scripting.SJS {
               // unwrapped functions so we can run code from another VM in our own context
               fcall(fn, func_args);
               
-              if(depth > VM.MAX_RECURSION_DEPTH) { 
+              if(call_stack.length > VM.MAX_RECURSION_DEPTH) { 
                 throw new Error('org.sixsided.scripting.SJS.VM: too much recursion in' + fn.name);
               }
             } else {
@@ -739,13 +754,7 @@ package org.sixsided.scripting.SJS {
           } else {
             opush(promiseFulfillArgs);
           }
-          
-          
-          /*for (var i:int = 0; i < promiseFulfillArgs.length; i++)
-          {
-            opush(promiseFulfillArgs[i]);
-          }*/
-          /*opush(value);*/
+
           run();
         }
         
@@ -754,39 +763,7 @@ package org.sixsided.scripting.SJS {
           halt();
           p.onFulfill(_resumeFromPromise);
         }
-            
-        private function PUSH_RESUME_PROMISE():void {
-          var p:Promise = new Promise;
-          p.onFulfill(_resumeFromPromise);
-          opush(p);
-          
-          // p.onFail(_resumeWithException)
-          // TODO: We're using Promise so we can pass an error back to the VM if the function fails,
-          // but we'll need to put some kind of exception handling in place before we can handle
-          // such errors.
-        }
-            
-        private function NOP():void{ 
-          //log('nop');
-        }
         
-        // an opcode is unnecessary; use halt() or add suspend() instead.
-        //private function HALT(){
-        //  state = STATE_HALTED;
-        //}
-  
-/*    function _prebind_ops(tokens){
-      log('prebinding tokens:', tokens);
-      for(var i in tokens) {
-        var t = tokens[i];
-        if(this.hasOwnProperty(t)) {
-          tokens[i] = this[t];
-        }
-      }
-      return tokens;
-    };
-*/    
-
     } // VM
   
 } // package
