@@ -28,13 +28,9 @@
   The symbols are all conceptually similar, but there's a lot of variability in the
   nud and led functions, and I didn't want to define 20-odd different classes for
   what's basically a data structure.
-  
-*/
 
-package org.sixsided.scripting.SJS {
-//    import org.sixsided.scripting.SJS.Inspector;
-    
-    /*
+
+
       pseudo-types:
         token:    {type, value, from, to}
         symbol:   {nud, led, std, bpow, codegen} associated with an id
@@ -43,9 +39,12 @@ package org.sixsided.scripting.SJS {
           - could set the prototype of each token to the symbol with the matching id
           - could make a ParseNode class per symbol and construct one instance around each token read
         the id of a parseNode references
-        
-    */
-    import org.sixsided.util.ANSI;
+  
+*/
+
+package org.sixsided.scripting.SJS {
+    
+  import org.sixsided.util.ANSI;
     
   public class Parser {
 
@@ -91,26 +90,14 @@ package org.sixsided.scripting.SJS {
 
 
         public function parse (src:String):Parser {
-            // trace('"""', src, '"""');
             tokens = [];
             token = null;
             token_idx = 0;
             source_code = src;
-            
-//symtab = {};
-//scopes = [[]]; // just names
-//tokens = [];
-//token = null;
-//token_idx = 0;
-//source_code = src;
     
             tokens = Lexer.tokenize(src);
-            //try {
-                next();
-                ast = statements();
-            //} catch(e) {
-            //  
-            //}
+            next();
+            ast = statements();
             return this;
         };
 
@@ -130,94 +117,51 @@ package org.sixsided.scripting.SJS {
 
       /***********************************************************
       *
-      *    DEBUG CRUFT
+      *    DEBUG 
       *
       ***********************************************************/
-    
-        // Traverse the parse tree in preorder and output it in a 
-        // postfix notation with lisp-like parenthesization
-        /*public function dump_node(tree:Object) : String {
-                   var depth:int = 0;
-                   function pad():String {
-                     return "\n" + '                                    '.slice(0, depth * 2);
+
+      public function dump_node(tree:Object) : String {
+           var ret:Array = [];
+           
+           function p(s:String) : void {
+             ret.push(s);
+           }
+           
+           function pval(v:*) : void {
+             //p(v.value + ':' + typeof v.value);
+             p(v.value);
+           }
+           
+
+           function dnr(n:*) : void {
+               if(!n) return;
+
+               if(n is Array) {
+                   p('[');                     // '[' and ']' for arrays, such as argument arrays
+                   var i:int = 0;
+                   for each (var v:* in n) {
+                       dnr(v);
+                       if(++i < n.length) { p(','); }
                    }
-
-                   function dnr(n:*):String {
-                       if(!n) return '';
-                                       
-                       var ret:String = '';
-                       if(n is Array) {
-                         
-                           if(n.length == 0) { return pad() + '[]'; } // display empty arrays compactly
-                           
-                           ret += pad() + '[';                     // '[' and ']' for arrays, such as argument arrays
-                           depth++;
-                           var i:int = 0;
-                           for each (var v:* in n) {
-                               ret += dnr(v);
-                               if(++i < n.length) { ret += ','; }
-                           }
-                           depth--;
-                           ret += pad() + ']'
-                       } else if( n.first ){               // '(' and ')' for node children
-                           ret = pad() + '(';
-                           depth++;
-                           ret +=  n.value == '(' ? 'CALL' : n.value;
-                           ret += dnr(n.first);
-                           ret += dnr(n.second);
-                           ret += dnr(n.third);
-                           depth--;
-                           ret += pad() + ')';
-                       } else {
-                           //return pad() + "'" + n.value + "'";
-                           return pad() + typeof(n.value) + ':' + n.value;
-                       }
-                       return ret;
-                   }
-                   return dnr(tree);
-               }*/
-        
-                public function dump_node(tree:Object) : String {
-                     var ret:Array = [];
-                     
-                     function p(s:String) : void {
-                       ret.push(s);
-                     }
-                     
-                     function pval(v:*) : void {
-                       //p(v.value + ':' + typeof v.value);
-                       p(v.value);
-                     }
-                     
-
-                     function dnr(n:*) : void {
-                         if(!n) return;
-
-                         if(n is Array) {
-                             p('[');                     // '[' and ']' for arrays, such as argument arrays
-                             var i:int = 0;
-                             for each (var v:* in n) {
-                                 dnr(v);
-                                 if(++i < n.length) { p(','); }
-                             }
-                             p(']')
-                         } else if( n.hasOwnProperty('first')){               // '(' and ')' around node children
-                             p('(');
-                             if(n.value == '(') p('CALL'); else if(n.value == '[') p("ARRAY"); else pval(n);
-                             dnr(n.first);
-                             dnr(n.second);
-                             dnr(n.third);
-                             p(')');
-                         } else {
-                             pval(n);
-                             return;
-                         }
-                     }
-                     
-                     dnr(tree);
-                     return ret.join(' ');
-                 }        
-                 
+                   p(']')
+               } else if( n.hasOwnProperty('first')){               // '(' and ')' around node children
+                   p('(');
+                   if(n.value == '(') p('CALL'); else if(n.value == '[') p("ARRAY"); else pval(n);
+                   dnr(n.first);
+                   dnr(n.second);
+                   dnr(n.third);
+                   p(')');
+               } else {
+                   pval(n);
+                   return;
+               }
+           }
+           
+           dnr(tree);
+           return ret.join(' ');
+       }        
+       
         public function dump_ast():String{
           return dump_node(ast);
         };
@@ -253,11 +197,32 @@ package org.sixsided.scripting.SJS {
             trace(indent, '[Parser]', msg.join(' '));
           }
       }
-
-
-      public function _symbol_tostring():String {
-        return "(" + this + ")";
+      
+  
+    public function formattedSyntaxError(t:Object) : String {
+      var nlChar:Object = {"\n":true, "\r":true};
+      
+      function line_start(pos:int):int {
+        while(pos > 0 && !nlChar[source_code.charAt(pos)]) pos--;
+        return Math.max(0, pos);
       }
+      
+      function line_end(pos:int):int {
+        var z:int = source_code.length - 1;
+        while(pos < z && !nlChar[source_code.charAt(pos)]) pos++;
+        return Math.min(z, pos);
+      }
+      
+      var a:int = line_start(line_start(t.from) - 1);
+      var z:int = line_end(line_end(t.to) + 1);
+      
+      const ansi_escape:String = ANSI.RED + ANSI.INVERT;
+      var dupe:String = source_code.substring(0, t.from) + ansi_escape + source_code.substring(t.from, t.to) + ANSI.NORMAL + source_code.substring(t.to);
+            
+      return dupe.substring(a, z+(ansi_escape + ANSI.NORMAL).length);
+      
+    }
+      
 
 
       /***********************************************************
@@ -266,10 +231,7 @@ package org.sixsided.scripting.SJS {
       *
       ***********************************************************/
 
-
-
-    //                          reserved words stay reserved -- operators
-      
+      // reserved words stay reserved -- operators
 
       public function _extend(a:Object, b:Object) : Object { 
         for(var k:String in b) {
@@ -279,13 +241,9 @@ package org.sixsided.scripting.SJS {
       }
 
       public function next(id:String=null) : Object {         
-        
-/*          var nt = tokens[token_idx];
-          if(token) log( (id ? '[' + id + '] ' : '') + '"' + token.value + '" --> ' + (nt ? ('"' + nt.value + '"') : ''));
-*/    
           if(id && token.id != id) {
               log('Parser::next expected to be on "' + id + '" but was on "' + dump_node(token) + '"');
-              if(id == ';') throw new Error('missing a semicolon before ' + offending_line(token.from));
+              if(id == ';') throw new Error('missing a semicolon near ' + offending_line(token.from));
               throw new Error('unexpected token, id: `' + token.id + ' value: `' + token.value + "' in next()");
           }
               
@@ -300,36 +258,35 @@ package org.sixsided.scripting.SJS {
               } else {
                   token.id = ID_NAME;
               }
-              // log('name parsed:', token.id, token.value);
-
           } else if(token.type == 'string' || token.type == 'number') {
               token.id = ID_LITERAL;
               // lexer transforms numbers to floats
           } else /*operator*/ {
               token.id = token.value;
-              // log('op parsed:', token.id);
           }
         
           return _extend(token, symtab[token.id]); // clone FTW.  So what if it might be slow?   handles the this binding simply.
       }
 
     public function infix_codegen(opcode:*):Function { 
-      return function():void { C(this.first); C(this.second); emit(opcode); };
+      return function():void { 
+        C(this.first); 
+        C(this.second); 
+        emit(opcode); 
+      };
     }
+
 
     public function infix_thunk_rhs_codegen(opcode:*):Function { 
       return function():void { 
         C(this.first);
-        // delay evaluation of second child by wrapping it in a subarray
+        // delay evaluation of second child by wrapping it in an array literal
         emit(VM.LIT);
         emit(codegen_block(this.second));
-        //emit(VM.CLOSURE); // stack for a closure looks like [name, [args], [body]]
-        
-        //C(this.second);
-        
         emit(opcode);
       };
     }
+    
 
     public function prefix_codegen(opcode:*):Function { 
       return function():void { C(this.first); emit(opcode); };
@@ -337,10 +294,11 @@ package org.sixsided.scripting.SJS {
 
 
     public function symbol(sym:String):Object {
-      if(symtab.hasOwnProperty(sym)) return symtab[sym];
-      return symtab[sym] = {}
+      if(!symtab.hasOwnProperty(sym)) symtab[sym] = {};
+      return symtab[sym];
     }
-    
+
+
     public function infix(sym:String, bpow:Number, opcode:*) : Object {
       
         function leftDenotation(lhs:Object):Object {
@@ -349,11 +307,9 @@ package org.sixsided.scripting.SJS {
           return this;          
         }
         
-          return symtab[sym] = {
-                                  led:leftDenotation,
+          return symtab[sym] = {  led:leftDenotation,
                                   codegen:infix_codegen(opcode),
-                                  bpow:bpow
-          };
+                                  bpow:bpow };
       };
 
 
@@ -368,25 +324,7 @@ package org.sixsided.scripting.SJS {
                                     bpow:bpow
             };
         };
-      
 
-    // TBD: let a script function say  parser.user_infix('x', 160, newPoint);   p = 30 x 60;  function newPoint(a,b) { return new Point(a,b); }
-    //public function user_infix(sym:String, bpow:Number, callback:VmFunc) {
-    //  return symtab[sym] = {
-    //    led:infix_led,
-    //    bpow:bpow,
-    //    codegen:
-    //      function(){
-    //        // 23 @ 42  -> VAL newPoint [ 23 42 ] CALL
-    //        emit(VM.VAL);
-    //        emit_lit(this.id);
-    //        emit(VM.MARK);
-    //        C(this.first);
-    //        C(this.second);
-    //        emit(VM.ARRAY);
-    //        emit(VM.CALL)
-    //      }      
-    //}
 
     public function prefix(sym:String, bpow:Number, opcode:*) : void { 
         var s:Object = symbol(sym);
@@ -397,33 +335,7 @@ package org.sixsided.scripting.SJS {
         };
         s.codegen = prefix_codegen(opcode);
     }
-    
-    
-  // from the terminal:
-  // defineOperator('->', function(message, callback) { Messenger.listen(message, callback); })
-  // TODO: make this actually work
-  public function defineOperator(id:String, operation:Function /* callback to VM */,  bpow:int = 999) : void {
-        var sym:Object = symbol(id);
-        sym.bpow = bpow;
-        sym.led = function(lhs:Object):Object {
-                                    this.first = lhs;
-                                    this.second = [expression(this.bpow - 1 )];  /* drop the bpow by one to be right-associative; make into an [ argument list ] */
-                                    //this.assignment = true;
-                                    return this;
-                                };
 
-        sym.codegen = function():void {          
-              emit(operation);
-              
-              emit(VM.MARK);
-              C(this.first);
-              C(this.second);
-              emit(VM.ARRAY);
-              
-              emit(VM.CALL);
-        };
-
-  }
 
   public function assignment(id:String, bpow:int, operation:String=null) : void {
         var sym:Object = symbol(id);
@@ -440,35 +352,35 @@ package org.sixsided.scripting.SJS {
                                 };
 
         sym.codegen = function():void {
-                                    if(mutate) {                                    
-                                        // do the operation     // if it's "x += 3", then...
-                                        C(this.first);          // LIT x
-                                        C(this.second);         // VAL 3
-                                        emit(operation);        // ADD
-                                    } else {
-                                        // just emit the value   // if it's "x = 3", then:  LIT 3
-                                        C(this.second);
-                                    }
+            if(mutate) {                                    
+                // do the operation     // if it's "x += 3", then...
+                C(this.first);          // LIT x
+                C(this.second);         // VAL 3
+                emit(operation);        // ADD
+            } else {
+                // just emit the value   // if it's "x = 3", then:  LIT 3
+                C(this.second);
+            }
 
-                                    //assign it to the lhs
-                                    C(this.first, true);        // LIT x 
-            
-                                    if(this.first.id=='.') {
-                                        // e.g. for "point.x += 3", change the opcode from:
-                                        //    VAL point LIT x GETINDEX LIT 3 ADD    VAL point LIT x GETINDEX
-                                        // to:                                                      ^^^
-                                        //    VAL point LIT x GETINDEX LIT 3 ADD    VAL point LIT x PUTINDEX
-                                        remit(VM.PUTINDEX); // PUTINDEX consumes the stack (val obj key)  and does obj[key] = val;
-                                    } else {
-                                        emit(VM.PUT);
-                                    }
-                                    // PUT leaves the value onstack for multiple assignment, DROP it as we come out of the nested assignments
-                                    // need_drop();
-                                };
+            //assign it to the lhs
+            C(this.first, true);        // LIT x 
+
+            if(this.first.id=='.') {
+                // e.g. for "point.x += 3", change the opcode from:
+                //    VAL point LIT x GETINDEX LIT 3 ADD    VAL point LIT x GETINDEX
+                // to:                                                      ^^^
+                //    VAL point LIT x GETINDEX LIT 3 ADD    VAL point LIT x PUTINDEX
+                remit(VM.PUTINDEX); // PUTINDEX consumes the stack (val obj key)  and does obj[key] = val;
+            } else {
+                emit(VM.PUT);
+            }
+            // PUT leaves the value onstack for multiple assignment, DROP it as we come out of the nested assignments
+            // need_drop();
+        };
 
     }
-    
-    
+
+
     public function affix(id:String, bpow:int, opcode:String) : void {
        symtab[id] = {
               bpow:bpow,
@@ -511,49 +423,22 @@ package org.sixsided.scripting.SJS {
 
   
     public function constant(id:String, v:*) : Object {
-            return symtab[id] = {
-                nud:function():Object{ 
-                  this.value = v;
-                  return this;
-                },
-                bpow:0, 
-                codegen:function():void {
-                            emit_lit(this.value);
-                }
-            };
+      return symtab[id] = {
+          nud:function():Object{ 
+            this.value = v;
+            return this;
+          },
+          bpow:0, 
+          codegen:function():void {
+                      emit_lit(this.value);
+          }
       };
-      
-
-      
-    public function formattedSyntaxError(t:Object) : String {
-      var nlChar:Object = {"\n":true, "\r":true};
-      
-      function line_start(pos:int):int {
-        while(pos > 0 && !nlChar[source_code.charAt(pos)]) pos--;
-        return Math.max(0, pos);
-      }
-      
-      function line_end(pos:int):int {
-        var z:int = source_code.length - 1;
-        while(pos < z && !nlChar[source_code.charAt(pos)]) pos++;
-        return Math.min(z, pos);
-      }
-      
-      var a:int = line_start(line_start(t.from) - 1);
-      var z:int = line_end(line_end(t.to) + 1);
-      
-      const ansi_escape:String = ANSI.RED + ANSI.INVERT;
-      var dupe:String = source_code.substring(0, t.from) + ansi_escape + source_code.substring(t.from, t.to) + ANSI.NORMAL + source_code.substring(t.to);
-            
-      return dupe.substring(a, z+(ansi_escape + ANSI.NORMAL).length);
-      
     }
 
 
     public function expression(rbp:Number):Object {
           xd++;
           // grab first token and call its nud
-          // log('expression(', rbp, ')  // ', dump_node(token), '...');
           var t:Object = token;
           next();
           if(t.nud == undefined) {
@@ -561,50 +446,42 @@ package org.sixsided.scripting.SJS {
             throw new SyntaxError("Unexpected " + t.id + " token:  ``" + t.value + "''" + " at char:" + t.from + "-" + t.to + " || line: " + offending_line(t.from));
           }
           var lhs:Object = t.nud();
-          // log('"' + dump_node(t) + '".nud() => ' + lhs);
           // shovel left hand side into higher-precedence tokens' methods
           while (rbp < token.bpow){
               t = token;
-              next();
-              
-              // log('"' + dump_node(t) + '".led(' + dump_node(lhs) + ') -> ');
+              next();              
               if(!t.led) { 
                 throw new SyntaxError(t + 'has no led in ' + source_code);
               }
               lhs = t.led(lhs);
-              //log('  ' + dump_node(lhs));
-              
           } 
-          // log('=> ' + dump_node(lhs));
           xd--;
           return lhs;
       }
                      
     public function block():Object {
-          var t:Object = token;
-          next("{");
-          return t.std();
-      };
+      var t:Object = token;
+      next("{");
+      return t.std();
+    };
 
       
     public function statement():Object{
-          var ret:Object, t:Object = token;
-          if(t.std) {
-              next();
-              // log('std ' + t);
-              ret = t.std();
-              // log('-> ' + t);
-              return ret;
-          }
-          // log('no std; expression...');
-          var xstmt:Object = expression(0);
-          // log(xstmt);
-          if(!(xstmt.assignment || xstmt.id == '(')) { 
-              throw( new Error('invalid expression statement :' +  offending_line(t.from)) );
-          } // neither assignment nor function call
-          next(';');
-          return xstmt;
-      }
+        var ret:Object, t:Object = token;
+        if(t.std) {
+            next();
+            ret = t.std();
+            return ret;
+        }
+
+        var xstmt:Object = expression(0);
+    
+        if(!(xstmt.assignment || xstmt.id == '(')) { 
+            throw( new Error('invalid expression statement :' +  offending_line(t.from)) );
+        } // neither assignment nor function call
+        next(';');
+        return xstmt;
+    }
           
 
       public function statements():Array{
@@ -616,20 +493,18 @@ package org.sixsided.scripting.SJS {
           return stmts;
       }     
 
-      /***********************************************************
-      *
-      *    CODEGEN
-      *
-      ***********************************************************/
+    /***********************************************************
+    *
+    *    CODEGEN
+    *
+    ***********************************************************/
 
     public function emit1(opcode:*, ...ignore) : void {
       emit(opcode);
     }
     
     public function emit(... opcodes) : void {
-      //var msg = '';
       for(var i:int=0; i<opcodes.length;i++){
-          /*log('[emit]', opcodes[i]);*/
           generated_code.push(opcodes[i]);
       }
     }
@@ -666,19 +541,18 @@ package org.sixsided.scripting.SJS {
           
           
   public function backjumper(opcode:*):Function {
-    // opcodes emitted:  JUMP|JUMPFALSE <offset>
-    // currently uses only JUMP, but will need JUMPFALSE to support "do { ... } while(test)" semantics    (TBD)
+      // opcodes emitted:  JUMP|JUMPFALSE <offset>
+      // currently uses only JUMP, but will need JUMPFALSE to support "do { ... } while(test)" semantics    (TBD)
       var here:int = generated_code.length;
       return function():void { 
         emit(opcode);
         var offset:int = here - generated_code.length - 1; // decrement to factor in the <offset> literal
-        // log(" @ @ @ EMIT BACKJUMP: ", opcode, offset);
         emit(offset);
       }
   }
           
-      // public var drops_needed:int = 0;                 // fixme: this seems really incorrect.  take multiple assignment out?
-      // public function need_drop():void { drops_needed++; }  // see assignment()  ^^^... no, make codegen return and concat arrays recursively
+    // public var drops_needed:int = 0;                 // fixme: this seems really incorrect.  take multiple assignment out?
+    // public function need_drop():void { drops_needed++; }  // see assignment()  ^^^... no, make codegen return and concat arrays recursively
     
     public function C(node:Object, is_lhs:Boolean=false):void {  
       if(!node) {
@@ -713,11 +587,9 @@ package org.sixsided.scripting.SJS {
     public function codegen_block(node:Object):*{
       var orig_code:Array = generated_code;
       generated_code = [];
-/*    log('compiling block');*/
       C(node);
       var block_code:Array = generated_code;
       generated_code = orig_code;
-/*    log('returning block', Inspector.inspect(block_code));*/
       return block_code;
     }
     
@@ -729,15 +601,6 @@ package org.sixsided.scripting.SJS {
       }
     }
 
-
-/* 
-Note: it might be worth storing the symbol table as an {id:symbol} hash
-if I decide to put vars on the stack rather than in hash tables, b/c the symbol
-could store the var's stack index.  maybe?
-
-    Might be worth investigation for a speed bump later.  AS3 hash lookups are fast,
-    but I might eliminate the hashes entirely and throw everything on the stack.  Meh.
-*/
 
   // scope handling stuff at present only exists to prevent name collisions at parse time.
      public function scope_define(name:String):void {
@@ -760,7 +623,6 @@ could store the var's stack index.  maybe?
       
 
     public function parse_argument_list():Array {
-        // log('parse_argument_list (' + token.value +')');
         var args:Array = [];
         
         if(token.id == ')') return args;  // bail if args list is empty; caller is responsible for consuming )
@@ -772,7 +634,6 @@ could store the var's stack index.  maybe?
             }
             next(',');
         }
-        // log('arguments list:', dump_node(args));
         return args;
     }    
     
@@ -783,12 +644,6 @@ could store the var's stack index.  maybe?
       
     public function init_symbols():void {
 
-/*    In js, could dump parse tree with:
-    Array.prototype.toString = function(){ return "[" + this.join(',') + "]"; };
-        Function.prototype.toString = function() { return "*CODE*"; }
-    No go in AS3.
-*/
-      
       //constants
       constant('true', true);
       constant('false', false);
@@ -821,13 +676,6 @@ could store the var's stack index.  maybe?
       affix('++', 140, VM.ADD);
       affix('--', 140, VM.SUB);
             
-      /*symtab['...'] = {
-        nud:function():Object { return this; },
-        codegen:function(am_lhs:Boolean):void {
-          // ok, so we pass to the function a promise to resume execution here
-          emit(VM.PUSH_RESUME_PROMISE); // Promise so we can pass an error back to the VM if the function fails
-        }
-      }*/
 
       prefix('!', 140, VM.NOT);
       infix('+', 120, VM.ADD);
@@ -867,14 +715,12 @@ could store the var's stack index.  maybe?
        // where dot has stack effect ( o k -- o[k] )
        // a.b.c.d = e -- $ e $a # b dot # c dot # d dot dict 
        symtab['.'].codegen = function(is_lhs:Boolean /* assignment? */):void {
-           // log('.', this.first.value, this.second.value, is_lhs ? 'LHS' : 'RHS');
            if(this.first.id != '.') {
                C(this.first, false); // use VAL
            } else {
                C(this.first, true);  // use LIT
            }
            C(this.second, true); // treat as LHS until the last item in the dot-chain
-           log('# emit ' + VM.GETINDEX);
            emit(VM.GETINDEX);
        };
             
@@ -952,7 +798,7 @@ could store the var's stack index.  maybe?
         std:function():Object {
             var fn_name:Object = token;
             var args:Array = [];
-            next(/*name*/);       // <-- this is correct
+            next(/* skip the function name */);
       
             if(fn_name.type != T_NAME) { throw("Invalid function name '" + fn_name.value + "' on line: " + offending_line()); }
             
@@ -962,15 +808,7 @@ could store the var's stack index.  maybe?
             next('(');
             if(token.id != ')') {
                 args = parse_argument_list();
-/*                for(;;) {
-                    log(token);
-                    if(token.type != T_NAME) throw new Error('unexpected ' + token.id + ' in fn args');
-                    args.push(token);
-                    next();
-                    if(token.id != ',') break;
-                    next();
-                }
-*/            }
+            }
             next(')');
             next('{');
             var body:Array = statements();
@@ -989,7 +827,7 @@ could store the var's stack index.  maybe?
        
         nud:function():Object {
           var args:Array = [];
-          // we need to create a fake function-name token
+          // we need to create a fake function-name token for this anonymous function
           var fn_name:Object = {
             id: ID_NAME,
             type: T_NAME,
@@ -997,17 +835,12 @@ could store the var's stack index.  maybe?
             isAnonymous:true
           };
 
-            //trace('function nud:', Inspector.inspect(token));
-          //scope_define(fn_name);
           scope_push();
           this.scope = scopes[0];
           next('(');
-            //trace('function nud after next (:', Inspector.inspect(token));
-          log('function symbol skipped past (, on token:', token);
           if(token.id != ')') {
               args = parse_argument_list();
           }
-            //trace('function nud:', Inspector.inspect(args));
   
           next(')');
           next('{');
@@ -1020,11 +853,8 @@ could store the var's stack index.  maybe?
           this.first = fn_name;
           this.second = args;
           this.third = body;
-  
-            //trace('function nud 1,2,3:', this.first, this.second, this.third);
 
           return this;
-  
         },
 
         bpow:0,
@@ -1115,8 +945,6 @@ could store the var's stack index.  maybe?
           
           // x = y[z]
           led:function(lhs:Object):Object{
-              log('* * * [.led');
-            
               this.first = lhs;  // "y"
               // will be on '['
               this.second = expression(0); // "z"
@@ -1130,7 +958,6 @@ could store the var's stack index.  maybe?
           toString:function():String { return "(array " + this.first + ")"; },
           bpow:160,
           codegen:function(is_lhs:Boolean = false):void { 
-            log('* * * [.codegen');
             if(this.subscripting) {
               //this.first could be a variable name or a literal array, e.g.  [1,2,3][0];  getArray()[0]
               //we want to throw whatever it is on the stack, then getIndex it.
@@ -1140,34 +967,9 @@ could store the var's stack index.  maybe?
             } else {
               emit('MARK'); C(this.first); emit('ARRAY');
             }
-            log('* * * end [ codegen');
           }
 
       };
-
-                           //symtab['.'].codegen = function(is_lhs:Boolean /* assignment? */):void {
-                           //               // log('.', this.first.value, this.second.value, is_lhs ? 'LHS' : 'RHS');
-                           //               if(this.first.id != '.') {
-                           //                   C(this.first, false); // use VAL
-                           //               } else {
-                           //                   C(this.first, true);  // use LIT
-                           //               }
-                           //               C(this.second, true); // treat as LHS until the last item in the dot-chain
-                           //               log('# emit ' + VM.GETINDEX);
-                           //               emit(VM.GETINDEX);
-                           //           };
-                           //                                           
-
-
-
-
-
-
-
-
-
-
-
 
 
       symtab['{'] = { 
@@ -1194,12 +996,12 @@ could store the var's stack index.  maybe?
          },
          codegen:function():void { emit('MARK'); C_hash(this.first);  emit('HASH'); }
       };
-        
-            // control structures
 
-        
-            //functions
-
+    /***********************************************************
+    *
+    *    CONTROL STRUCTURES
+    *
+    ***********************************************************/
 
 
       symtab['if'] = {
@@ -1217,8 +1019,7 @@ could store the var's stack index.  maybe?
               if(token.id == ID_NAME && token.value == 'else') {
                 next(); // skip else
                 var t:Object = token;
-                this.third = t.value == 'if' ? statement() : block(/*eats initial { */);
-                //next('}'); // block also eats closing }
+                this.third = t.value == 'if' ? statement() : block( /* eats  { and } */);
                 // what if the next statement's another if?
               }
               return this;
