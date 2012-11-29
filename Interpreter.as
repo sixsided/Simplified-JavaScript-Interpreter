@@ -38,19 +38,17 @@ package org.sixsided.scripting.SJS {
     }
     
     public function pushDict(d:Object):Interpreter {
-      vm.pushdict(d);
+      vm.pushDict(d);
       return this;
     }
     
     public function setGlobal(key:String, value:*):Interpreter {
-      vm.set_global(key, value);// functions, variables, whatever
+      vm.setGlobal(key, value);// functions, variables, whatever
       return this;
     }
     
     public function setGlobals(map:Object):Interpreter {
-      for(var key:String in map) {
-        vm.set_global(key, map[key]);
-      }
+      vm.setGlobals(map);
       return this;
     }
     
@@ -59,10 +57,10 @@ package org.sixsided.scripting.SJS {
     // def('->', callback);
     // a -> b; // invokes callback(a, b)
     // e.g.  "EventName -> function(e) { ... };"  or even "EventName -> some statement;"
-    public function defineOperator(op:String, cb:Function) : void {
+/*    public function defineOperator(op:String, cb:Function) : void {
       parser.defineOperator(op, cb);      
     }
-    // vm.set_global('def', defineOperator);
+*/    // vm.set_global('def', defineOperator);
     
   }
 }

@@ -165,15 +165,12 @@ package org.sixsided.scripting.SJS {
     
     public function setInterpreter(i:Interpreter)  : void {
       interpreter = i;
-      interpreter.vm.set_global('trace', rcTrace);
-      interpreter.vm.set_global('_', rcInspect);
-      interpreter.vm.set_global('help', rcHelp);           
-      interpreter.vm.set_global('verbose_parse', rcVerboseParse);           
-      interpreter.vm.set_global('verbose_codegen', rcVerboseCodegen);                 
-      // interpreter.setGlobals({trace_on : interpreter.parser.trace_on, trace_off :  interpreter.parser.trace_off});           
-      //interpreter.parser.trace_on();
-      //interpreter.vm.system_dicts[0].trace = this.rcTrace;
-      //interpreter.vm.system_dicts[0]._ = function(v:*) { rcTrace(Inspector.inspect(v)); };
+      interpreter.setGlobals({'trace': rcTrace,
+                              '_': rcInspect,
+                              'help': rcHelp,           
+                              'verbose_parse': rcVerboseParse,           
+                              'verbose_codegen': rcVerboseCodegen
+                             });                 
     }
   }
 }
