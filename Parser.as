@@ -44,7 +44,7 @@
 
 package org.sixsided.scripting.SJS {
     
-  import org.sixsided.util.ANSI;
+  import org.sixsided.scripting.ANSI;
     
   public class Parser {
 
