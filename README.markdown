@@ -1,15 +1,53 @@
-Simplified JavaScript (SJS) is a JavaScript interpreter you can embed in your Flash ActionScript 3 projects.  It handles most JavaScript, and you can instantiate native flash objects like MovieClip with the "new" operator and manipulate them.  SJS is useful as an embedded scripting language for games or an exploratory debugging tool.
+Simplified JavaScript (SJS) is a JavaScript interpreter you can embed in your Flash ActionScript 3 projects.  
+
+SJS is useful as an embedded scripting language for games or an exploratory debugging tool.
 
 Inspirations: 
-
+----------------
 Douglas Crockford's "Top Down Operator Precedence"
 http://javascript.crockford.com/tdop/tdop.html
 
 Richard W.M. Jones' implementation of FORTH 
 http://annexia.org/forth
 
+Features
+--------
+* can parse and execute most JavaScript.
+* can import AS3 objects by calling interpreter.setGlobal("objectNameInJS", objectNameInAS3)
+* can instantiate native flash objects like MovieClip with the "new" operator and manipulate them.
+* async "await" statement that pauses the VM until a Promise is fulfilled
+
+Omissions
+-----------
+* prototype chain
+* multiple assignment (i.e. a = b = c)
+* semicolons are required
+
+Await
+-----------
+
+    protected function waitBriefly() : Promise {
+        var t:Timer = new Timer(1000, 1);
+        var p:Promise = new Promise();
+        t.addEventListener(Timer.TIMER, function(e:TimerEvent) { promise.fulfill(23); } )
+        t.start();
+        return p;
+    }
+    
+    // ... then ....
+    myInterpreter.setGlobal('doSomethingAsync', waitBriefly);
+    
+    myInterpreter.doString(  "trace(1);                         "
+                           + "await x = doSomethingAsync();     "
+                           + "trace(x);                         " );
+
+    // interpreter will trace out "23" after one second.
+    
+    
+
 
 How it works:
+=============
 
 SJS operates on JavasScript in four stages:
 
@@ -46,17 +84,11 @@ SJS operates on JavasScript in four stages:
     LIT 1 LIT 2 LIT 3 MUL LIT 4 DIV LIT 5 MOD ADD
 
 
-SJS differs from JavaScript, mostly by omission:
-  omitted keywords: delete typeof void as in instanceof is
-  omitted control structures: for/in, switch/case, while at end of block (as in "{ ... } while(cond);")
-  no prototype chain / inheritance
-  logic:  a() && b()  will call both functions;  same for a() || b().
-  semicolons are required
-*/
 
 
 Note for RemoteConsole.as:
-		serve policy files on Flash's expected port 843 with:		
+===========================
+		serve policy files on Flash's expected port 843 with netcat:		
 			while true ; cat policy.xml | nc -l 843 ; end
 			
 		listen for connections from the Flash app with:
