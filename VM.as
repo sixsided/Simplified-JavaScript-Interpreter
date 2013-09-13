@@ -17,7 +17,7 @@ package org.sixsided.scripting.SJS {
  
   import flash.geom.*;
   import flash.display.*;
-  import org.sixsided.util.Promise;
+  import org.sixsided.scripting.Promise;
   import org.sixsided.scripting.ANSI;  
 
   import flash.events.Event;
