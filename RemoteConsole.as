@@ -44,9 +44,11 @@ package org.sixsided.scripting.SJS {
     
     protected function evtConnect(e:Event):void {
       trace('evtConnect (RemoteConsole connected)', e);
-      sendBack('@flash');
-      
-      if(helloMessage) { sendBack(helloMessage); }
+      //sendBack("@flash\n"); // tell remote-console-hub.py to switch us from group @default to @flash
+      this.socket.writeUTFBytes("@flash\n");
+      this.socket.flush();
+
+      //if(helloMessage) { sendBack(helloMessage); }
     }
     
     protected function evtClose(e:Event):void {
@@ -91,7 +93,7 @@ package org.sixsided.scripting.SJS {
     
     protected function evtData(e:ProgressEvent):void {
       var data:String = this.socket.readUTFBytes(this.socket.bytesAvailable);
-      //trace('read from socket: "' + data + '"');
+      trace('read from socket: "' + data + '"');
       if(interpreter) {
         /*try {*/
           /*
@@ -102,7 +104,7 @@ package org.sixsided.scripting.SJS {
             interpreter.doString(data);
           */
 
-          // semicolon as terminator
+          // Interpret semicolon as terminator of multi-line message:
           if(data.match(/;\s*$/)) {
             try {
               interpreter.doString(buffer + data);
@@ -129,6 +131,7 @@ package org.sixsided.scripting.SJS {
     
     public function sendBack(s:String) : void {
       this.socket.writeUTFBytes(":   " + s.split("\n").join("\n    ") + "\n"); // ignore outputProgressEvent
+      this.socket.flush();
     }
     
     public function rcTrace(...args) : void{

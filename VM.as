@@ -11,14 +11,12 @@ Notes to self:
 */
 
 package org.sixsided.scripting.SJS {
-  import org.sixsided.scripting.SJS.Inspector;
+  //import org.sixsided.scripting.SJS.Inspector;
   import flash.utils.getDefinitionByName;
   import flash.utils.getQualifiedClassName;
  
   import flash.geom.*;
   import flash.display.*;
-  import org.sixsided.scripting.Promise;
-  import org.sixsided.scripting.ANSI;  
 
   import flash.events.Event;
   import flash.events.EventDispatcher;
@@ -510,7 +508,7 @@ package org.sixsided.scripting.SJS {
 
           // TODO -- supply a "this" context for scripted functions?
           // FIXME -- How to distinguish between functions returning nothing and functions
-          //          returning undefined? For now, we don't.
+          //          returning undefined? For now, we don't. (function.length is the js way)
           // we allow both wrapped and unwrapped functions because they're both useful:
           //  wrapped functions for passing to AS3 as e.g. event listeners which retain
           //  a reference to this VM in their closures;
@@ -618,7 +616,7 @@ package org.sixsided.scripting.SJS {
 
 
         private function _resumeFromPromise(...promiseFulfillArgs) : void {
-          trace('_resumeFromPromise', promiseFulfillArgs);
+          log('_resumeFromPromise', promiseFulfillArgs);
           // convert all cases to 1-arg.
           //    0: null
           //    1: pass through

@@ -1,4 +1,4 @@
-package  org.sixsided.scripting {
+package  org.sixsided.scripting.SJS {
 	
 	public class ANSI {
     public static var ESC:String = "\x1B["; //String.fromCharCode(27) + '['; 

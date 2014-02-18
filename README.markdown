@@ -21,7 +21,9 @@ Omissions
 -----------
 * prototype chain
 * multiple assignment (i.e. a = b = c)
-* semicolons are required
+* automatic semicolon insertion
+* "with" statement
+* for...in, for each in
 
 Await
 -----------
@@ -44,10 +46,38 @@ Await
     // interpreter will trace out "23" after one second.
     
     
+How to use RemoteConsole.as:
+===========================
+    #### Best way: 
+    Run remote-console-hub.py, which provides a "chat" server 
+    that stays up across multiple runs of your SWF. Then telnet to it with nc
+    and issue commands to your heart's content. Let's wrap nc with rlwrap so we'll 
+    have command-line history (ie up- and down- arrow).
+
+      python org/sixsided/scripting/SJS/remote-console-hub.py
+      rlwrap nc localhost 9000
+  
+
+    Then start your Flash app, which should include code to the effect of:
+    
+      remoteConsole = new RemoteConsole('localhost', 9000);
+      remoteConsole.setInterpreter(new Interpreter());
+
+    Also see the comment at the top of remote-console-hub.py.
+
+    #### Other way:
+    1) serve policy files on Flash's expected port 843 with netcat:    
+        while true ; cat policy.xml | nc -l 843 ; end
+      
+    2) listen for connections from the Flash app with:
+        rlwrap nc -lk 8080
+    
+    
+    
 
 
-How it works:
-=============
+* * * Boring internals description * * *
+==============================================
 
 SJS operates on JavasScript in four stages:
 
@@ -86,20 +116,3 @@ SJS operates on JavasScript in four stages:
 
 
 
-Note for RemoteConsole.as:
-===========================
-		serve policy files on Flash's expected port 843 with netcat:		
-			while true ; cat policy.xml | nc -l 843 ; end
-			
-		listen for connections from the Flash app with:
-			rlwrap nc -lk 8080
-		
-		better yet, run remote-console-hub.py, which provides a "chat" server 
-		that stays up across multiple runs of your SWF. Connect to it and issue
-		commands from Terminal with:
-
-			rlwrap nc localhost 9000
-		
-		
-		
-		
