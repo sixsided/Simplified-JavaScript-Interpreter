@@ -1,7 +1,7 @@
 /*  Parser
 
-  The class takes the unconventional (for AS3) step of defining a bunch of
-  "symbol" objects like this:
+  The class takes the unconventional (for AS3) step of defining, not a bunch of methods or classes,
+  but within the scope of a single method a bunch of "symbol" objects like this:
   
     { bpow:an_int, nud: function() { ... }, led:function(){ ... }, std:function() { ... } }
   
@@ -66,7 +66,7 @@ package org.sixsided.scripting.SJS {
 
 
       // debug cruft
-      public var xd:int = 0 ;
+      public var xd:int = 0 ; // parse tree depth, used exclusively for indenting debug output
       public var tracing:Boolean = false;
 
 
