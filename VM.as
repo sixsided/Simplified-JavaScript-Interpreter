@@ -156,7 +156,9 @@ package org.sixsided.scripting.SJS {
 
     public function VM() {
         setGlobal('trace', _vmUserTrace);
-        setGlobal('halt', halt);          
+        setGlobal('halt', halt);
+        setGlobal('pushscope', pushDict);
+        setGlobal('popscope', popDict);
     }
 
   // for hotloading -- define a "clone me" function externally
@@ -180,6 +182,10 @@ package org.sixsided.scripting.SJS {
 
     public function pushDict(dict:Object) : void {
       system_dicts.unshift(dict);
+    }
+
+    public function popDict() : void {
+      system_dicts.shift();
     }
 
     // can say vm.load(one_liner).run() with no trouble
