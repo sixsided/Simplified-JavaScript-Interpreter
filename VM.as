@@ -155,7 +155,8 @@ package org.sixsided.scripting.SJS {
   ***********************************************************/
 
     public function VM() {
-        setGlobal('trace', _vmUserTrace);
+        setGlobal('_trace', _vmUserTrace);
+        setGlobal('verbose_vm', _vmSetVerbosity);
         setGlobal('halt', halt);
         setGlobal('pushscope', pushDict);
         setGlobal('popscope', popDict);
@@ -170,6 +171,10 @@ package org.sixsided.scripting.SJS {
           return ret;
     }
 */
+    public function _vmSetVerbosity(on:Boolean) : void {
+      tracing = on;
+    }
+
     public function setGlobal(k:String, v:*) : void {
       vm_globals[k] = v;
     }
@@ -182,10 +187,12 @@ package org.sixsided.scripting.SJS {
 
     public function pushDict(dict:Object) : void {
       system_dicts.unshift(dict);
+      trace('pushDict: now have', system_dicts.length);
     }
 
     public function popDict() : void {
       system_dicts.shift();
+      trace('popDict: now have', system_dicts.length);      
     }
 
     // can say vm.load(one_liner).run() with no trouble
@@ -209,7 +216,7 @@ package org.sixsided.scripting.SJS {
     
 
     // == run ==
-    // some notes:
+    // some notes:@C
     // Opcodes can only legally be of type String, although we interleave other types of data with them.
     // we loop until reaching the end of the last stack frame, or until halted (running = false).
     // we wrap (op) in extra parentheses to quiet Flash's "function where object expected" warning.
@@ -348,7 +355,14 @@ package org.sixsided.scripting.SJS {
         return (undefined === v) ? null : v;  // duhh why?
       }
   
-  
+  private function _keys(o : Object ) : Array {
+    var ret = [];
+    for(var k:String in o) {
+      ret.push(k);
+    }
+    return ret;
+  }
+
       private function _find_var(key:String) : * {
         // locals?
         var sf:StackFrame = frameWithVar(key);
@@ -363,6 +377,7 @@ package org.sixsided.scripting.SJS {
 
         // dicts?  (in LIFO order)
         for (var i:int = 0; i < system_dicts.length; i++) {
+          //trace('look for', key, 'in #' + i + '/' + system_dicts.length +':', _keys(system_dicts[i]).join('  '));
           var g:Object = system_dicts[i];
           if(g.hasOwnProperty(key)) {
             return g[key];
@@ -523,9 +538,9 @@ package org.sixsided.scripting.SJS {
             var func_args:* = opop();
             var fn:* = opop();
             var rslt:*;
-            
+            //trace('VM.CALL', (fn is Function) ? 'native' : fn, 'args:', func_args);
             if(fn is Function) {
-                rslt = fn.apply(null, func_args);
+                rslt = fn.apply(NaN, func_args); // NaN is flash's default; presumably it means "don't rebind this"
                 if(rslt !== undefined) opush(rslt); 
             } else if(fn is VmFunc) {
                 fcall(fn, func_args);              

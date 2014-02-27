@@ -22,8 +22,8 @@ package org.sixsided.scripting.SJS {
     protected var interpreter:Interpreter;    
     protected var helloMessage:String = null;
     
-    protected var _verboseCodegen:Boolean = true;
-    protected var _verboseParse  :Boolean = true;
+    protected var _verboseCodegen:Boolean = false;
+    protected var _verboseParse  :Boolean = false;
 
     public function RemoteConsole(host:String, port:int, helloMessage:String) {
       super();
@@ -135,12 +135,12 @@ package org.sixsided.scripting.SJS {
               sendBack(e);
             } finally {
               buffer = '';
-              /*if(_verboseParse) {
+              if(_verboseParse) {
                 rcTrace(interpreter.parser.dump_ast());
               }
               if(_verboseCodegen) {
                 rcTrace(interpreter.parser.dbg_codegen_string());
-              }*/
+              }
             }
           } else {
             buffer += data;
